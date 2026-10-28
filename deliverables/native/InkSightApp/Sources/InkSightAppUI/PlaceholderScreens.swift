@@ -383,6 +383,10 @@ struct MeScreen: View {
     @State private var guardianMessage = ""
     /// FR-032 ④：家长内容确认（进入时列出书架 N 本）。
     @State private var parentalDecision = ParentalContentDecision()
+    /// FR-032 ④：修改隐藏清单所需的监护凭据（验证成功后签发，5 分钟有效）。
+    @State private var guardianProof: GuardianProof?
+    @State private var hiddenAuthInput = ""
+    @State private var hiddenAuthMessage = ""
 
     /// 场景相位：`scenePhase != .active` 立即停后台重排
     /// （对齐 NFR-04「`scenePhase != .active` 立即 `cancelAllTasks()`」的纪律精神）。
@@ -714,13 +718,42 @@ struct MeScreen: View {
                     ))
                 }
             }
-            if !parentalDecision.hiddenBookIDs.isEmpty {
-                LabeledContent("家长隐藏", value: "\(parentalDecision.hiddenBookIDs.count) 本")
+            // FR-032 ④：隐藏清单修改**必须经监护验证**（类型层强制：setHidden 需 GuardianProof）
+            LabeledContent("家长隐藏", value: "\(parentalDecision.hiddenBookIDs.count) 本")
+            if guardianProof == nil {
+                SecureField("输入监护验证码以修改隐藏清单", text: $hiddenAuthInput)
+                Button("验证") {
+                    if let proof = guardian.verifyForProof(hiddenAuthInput) {
+                        guardianProof = proof
+                        hiddenAuthInput = ""
+                        hiddenAuthMessage = "验证通过（5 分钟内有效）。"
+                    } else {
+                        hiddenAuthMessage = "验证码不正确或已锁定。"
+                    }
+                }
+                .disabled(hiddenAuthInput.isEmpty)
+            } else {
+                Text("已验证，可选择隐藏的书")
+                    .font(.caption).foregroundStyle(.secondary)
+                ForEach(bookShelf?.items ?? [], id: \.bookID) { item in
+                    Toggle("隐藏：\(item.title)", isOn: Binding(
+                        get: { parentalDecision.hiddenBookIDs.contains(item.bookID) },
+                        set: { on in
+                            // 无凭据时 setHidden 返回 false（类型层拒绝修改）
+                            let changed = parentalDecision.setHidden(item.bookID, hidden: on,
+                                                                    authorizedBy: guardianProof)
+                            hiddenAuthMessage = changed ? "" : "修改被拒绝：需监护验证"
+                        }
+                    ))
+                }
+            }
+            if !hiddenAuthMessage.isEmpty {
+                Text(hiddenAuthMessage).font(.caption).foregroundStyle(.secondary)
             }
         } header: {
             Text("家长内容确认")
         } footer: {
-            Text("隐藏清单对孩子不可见、不可撤销；仅监护验证后可修改。")
+            Text("隐藏清单对孩子不可见、不可撤销；仅监护验证后可修改（验证 5 分钟内有效）。")
         }
 
         Section {
@@ -730,7 +763,25 @@ struct MeScreen: View {
                 Button("验证并退出未成年人模式") {
                     switch guardian.verify(guardianInput) {
                     case .success:
-                        guardianMessage = "验证通过。退出后进度将按时间戳自动合并（不弹选择框）。"
+                        // FR-032 ⑥：验证通过 → **自动合并**模式内进度回主进度
+                        // （时间戳为准、两份都保留、不弹选择框），成功后清空模式内副本。
+                        do {
+                            let outcome = try MinorModeExitCoordinator.exit(
+                                code: guardianInput,
+                                verification: guardian,
+                                minorStore: MinorModeProgressStore(),
+                                mainStore: ReadingProgressStore())
+                            if let report = outcome.report {
+                                guardianMessage =
+                                    "已验证并退出。进度已自动合并："
+                                    + "采用模式内 \(report.tookMinorProgress.count) 本，"
+                                    + "保留主进度 \(report.keptMainProgress.count) 本。"
+                            } else {
+                                guardianMessage = "验证未通过，未合并。"
+                            }
+                        } catch {
+                            guardianMessage = "合并失败：\(error)"
+                        }
                         guardianInput = ""
                     case .wrongCode:
                         guardianMessage = "验证码不正确。"
@@ -745,10 +796,16 @@ struct MeScreen: View {
                 }
             } else {
                 Button("设置监护验证码") {
-                    guardian.setCode(guardianInput.isEmpty ? "0000" : guardianInput)
-                    guardianInput = ""
-                    guardianMessage = "验证码已设置（仅存加盐哈希，不留明文）。"
+                    do {
+                        // FR-032 ③：明文立即哈希后丢弃，只落盘加盐迭代摘要（重启后仍有效）。
+                        try guardian.setCode(guardianInput)
+                        guardianInput = ""
+                        guardianMessage = "验证码已设置并保存（仅存加盐摘要，不留明文）。"
+                    } catch {
+                        guardianMessage = "验证码保存失败，请重试。"
+                    }
                 }
+                .disabled(guardianInput.isEmpty)
                 SecureField("输入要设置的验证码", text: $guardianInput)
                 if !guardianMessage.isEmpty {
                     Text(guardianMessage).font(.caption).foregroundStyle(.secondary)

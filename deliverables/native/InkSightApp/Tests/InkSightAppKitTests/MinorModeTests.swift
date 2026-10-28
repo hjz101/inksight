@@ -5,28 +5,46 @@ import InkSightCore
 /// FR-032 ③④⑥ 契约测试。
 final class MinorModeTests: XCTestCase {
 
+    private var tempDir: URL!
+
+    override func setUpWithError() throws {
+        tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("inksight-guardian-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    }
+
+    override func tearDownWithError() throws {
+        if let tempDir { try? FileManager.default.removeItem(at: tempDir) }
+    }
+
+    /// 隔离的验证器（凭证落临时目录，避免污染真实 Application Support）。
+    private func makeVerifier() -> GuardianVerification {
+        GuardianVerification(store: GuardianCredentialStore(
+            fileURL: tempDir.appendingPathComponent("g-\(UUID().uuidString).json")))
+    }
+
     // MARK: - ③ 监护验证码
 
     /// 未配置时返回 notConfigured（不默认放行）。
     func testNotConfigured() {
-        let v = GuardianVerification()
+        let v = makeVerifier()
         XCTAssertFalse(v.isConfigured)
         XCTAssertEqual(v.verify("1234"), .notConfigured)
     }
 
     /// 正确验证码 → success；错误 → wrongCode。
-    func testVerifyCorrectAndWrong() {
-        let v = GuardianVerification()
-        v.setCode("1234")
+    func testVerifyCorrectAndWrong() throws {
+        let v = makeVerifier()
+        try v.setCode("1234")
         XCTAssertTrue(v.isConfigured)
         XCTAssertEqual(v.verify("1234"), .success)
         XCTAssertEqual(v.verify("0000"), .wrongCode)
     }
 
     /// **不存明文**：验证码只以加盐哈希存在（无法从对象里读出明文）。
-    func testCodeIsNotStoredInPlaintext() {
-        let v = GuardianVerification()
-        v.setCode("mySecretCode")
+    func testCodeIsNotStoredInPlaintext() throws {
+        let v = makeVerifier()
+        try v.setCode("mySecretCode")
         // 遍历镜像属性，确认没有任何 String 字段等于明文
         let mirror = Mirror(reflecting: v)
         for child in mirror.children {
@@ -39,9 +57,9 @@ final class MinorModeTests: XCTestCase {
     }
 
     /// 超出最大失败次数 → 锁定（防暴力尝试）。
-    func testLockoutAfterMaxAttempts() {
-        let v = GuardianVerification()
-        v.setCode("1234")
+    func testLockoutAfterMaxAttempts() throws {
+        let v = makeVerifier()
+        try v.setCode("1234")
         for _ in 0..<(GuardianVerification.maxAttempts - 1) {
             XCTAssertEqual(v.verify("0000"), .wrongCode)
         }
@@ -57,9 +75,9 @@ final class MinorModeTests: XCTestCase {
     }
 
     /// 锁定到期后可再次验证。
-    func testLockoutExpires() {
-        let v = GuardianVerification()
-        v.setCode("1234")
+    func testLockoutExpires() throws {
+        let v = makeVerifier()
+        try v.setCode("1234")
         let now = Date()
         for _ in 0..<GuardianVerification.maxAttempts { _ = v.verify("0000", now: now) }
         let later = now.addingTimeInterval(TimeInterval(GuardianVerification.lockoutSeconds) + 1)
