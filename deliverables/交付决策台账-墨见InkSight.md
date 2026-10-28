@@ -520,6 +520,11 @@
 **随附交付登记（D-53 执行 · 开发包 #12）**：`deliverables/native/InkSightApp/`，新增 3 文件（`BackupService`／`BackupServiceTests`／`ReadingProgressStore` 扩展）＋ README 更新。**主理人复跑验证**：InkSightApp **142 tests / 0 failures**（D-60 后 137 ＋ 本包新增 5：BackupServiceTests；既有全绿不回退）；iOS Simulator SDK Build complete；InkSightCore 回归 41/0 维持；跨文档一致性 PASS 67 / FAIL 0。**FR-025 落地**：①**P0 前置满足——落盘格式带 `version` 字段**（`BackupPayload.currentVersion = 1`；测试断言 JSON 顶层含 version；此前三个 JSON store 均无 version 字段，是真实缺口）②导出只含**进度＋排版偏好＋动效偏好**，**结构上无正文字段**（`BackupPayload` 类型上没有 body/content/chapterText 字段——FR-025「导出不含在线书正文」从条款变成类型保证，测试断言键集）③导入恢复进度与偏好，未知**更高**版本拒绝（避免读坏新格式）、更低旧版本允许（老数据可迁移）④导入失败不半途覆盖（先校验后落盘）。**README 收口**：验证状态更新为 InkSightApp 137→**142**/0、InkSightCore 41/0；契约冻结更正为 **6** 个源文件并登记 D-59 契约变更留痕；补充三门面与 FR-033/FR-025 描述；台账引用 D-01～D-60→D-61。**诚实空态（本包未做/未验证）**：备份导出未接 UI 入口（`BackupService` 为 Kit 层 API，UI 待后续包）；笔记模型尚不存在（FR-025 原文含"笔记"，本包只导出进度与偏好，笔记导出待 FR-013 笔记功能落地后接入）；导入的真实文件选择器未接。
 
 ---
+### D-62　FR-024a 本地全文检索（FTS5 中文按字切分方案）
+
+**随附交付登记（D-53 执行 · 开发包 #13）**：`deliverables/native/InkSightApp/`，新增 2 文件（`LocalSearchStore`／`LocalSearchStoreTests`）＋ `SQLiteCache` 的 `SQLITE_TRANSIENT` 改 internal 共享。**主理人复跑验证**：InkSightApp **149 tests / 0 failures**（D-61 后 142 ＋ 本包新增 7：LocalSearchStoreTests；既有全绿不回退）；iOS Simulator SDK Build complete；InkSightCore 回归 41/0 维持；跨文档一致性 PASS 67 / FAIL 0。**FR-024a 落地**：①FTS5 虚拟表 `local_fts`（`book_id UNINDEXED / book_title / chapter_index UNINDEXED / body`，`unicode61` tokenizer），索引对象**仅本地导入文件**（调用方从 fileData/fileURL 切片正文喂入，索引完成即释放，主表仍只存字节锚点——NFR-08 不破）②索引库设 `NSURLIsExcludedFromBackupKey`（`Persist.applyExcludedFromBackup`，可重建）③目录 `Application Support/InkSight/FTS`（技术约束清单「缓存目录」节）④幂等覆盖（重复索引同 `(bookID, chapterIndex)` 删旧插新）⑤整书移除索引。**中文分词关键技术决策（本次实测排障）**：`unicode61` tokenizer 对连续 CJK 字符**整串分词**（整句一个 token），直接查询多字词永远 0 命中——实测确认后采用**逐字切分方案**：索引时 `characterSpaced`（每 CJK 字独立 token、英文词保留、标点转空格），查询时 `characterMatch`（「定位铁律」→ `"定" AND "位" AND "铁" AND "律"`，多字短语语义靠 AND 保证）。另排掉一个真实坑：**系统 sqlite3 的 FTS5 `snippet()` 要求 6 参数**（`snippet(t, 3, '…', '…', 12, 12)`），5 参数报 `wrong number of arguments` 导致整查询失败——snippet 只影响展示列，去掉后基础查询正常，补上第 6 参数后全通。**诚实空态（本包未做/未验证）**：搜索 UI 未接（`LocalSearchStore` 为 Kit 层 API，搜索界面待后续包）；「万本级首屏 ≤1s」为 FTS5 倒排索引的结构保证，未做万本实测（需真机/大数据样本）；导入时自动索引的接线（BookShelfStore 导入后调用 indexChapter）未做——当前需调用方显式索引。
+
+---
 ## 3. 状态索引
 
 ### 3.1 仍开放（客户后续再定）

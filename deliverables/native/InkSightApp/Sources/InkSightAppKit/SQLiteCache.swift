@@ -57,7 +57,9 @@ public final class SQLiteCache: @unchecked Sendable {
     private let lock = NSLock()
 
     /// `SQLITE_TRANSIENT`：绑定后 SQLite 立即拷贝数据，调用方缓冲区可释放。
-    private static let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+    /// SQLITE_TRANSIENT：绑定后 SQLite 立即拷贝数据，调用方缓冲区可释放。
+    /// internal：`LocalSearchStore`（FR-024a FTS）复用同一常量，避免两处各自定义。
+    static let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
     private static let allowedTables = ["page_anchors", "chapter_anchors", "fr024b_mapping"]
 
