@@ -655,6 +655,11 @@
 **随附交付登记（D-53 执行 · 开发包 #37）**：`ReaderSurface` 补齐 EGG4 短按翻页分支（`dogEarHoldTask` 延时判定 ＋ `advancePageInDogEarZone`）；`DogEarGestureResolver` 常量处写明阈值冲突与采纳依据 ＋ `DogEarShortPressWiringTests`（4）。**测试**：InkSightApp **344 / 0**（340 ＋ 4），InkSightCore 41/0，iOS Simulator SDK Build complete。**闭环掉 D-85 的空态**：此前 `resolveTap` 的短按翻页分支**未接线**——`DragGesture.onEnded` 无法单独区分单击与长按。现改为：按下时起一个 **300ms 延时任务**，提前抬手 → 取消任务 → 判为**短按翻页**（该角不留死区，与全屏右侧翻页一致）；到时仍在按 → 进入**折角跟手**。翻页做页边界收敛（`min(currentPage+1, pageCount-1)`，末页不越界）。**发现并登记一处规范冲突（本轮重要产出）**：PRD FR-030 的 EGG4 行写「阅读页**长按页角 400ms**」，而 DESIGN §5 ④「阅读器右下双判定热区（**规范正文，不只放验收**）」写「按住 **≥300ms** → 折角跟手」。**这不是笔误级的措辞差异，而是决定该角在 300–400ms 区间行为的分界**：按 400ms 实现，则 300–400ms 抬手既不算翻页也不进折角，形成**手感死区**。**采纳 300ms**，依据三条：①DESIGN 该节自述为规范正文，且把「<300ms 翻页」与「≥300ms 跟手」**绑成一对**，改一个必然要改另一个；②PRD 的 400ms 出现在 EGG4 注册表行，描述的是折角彩蛋的**单一动作**，未涉及与翻页的分界；③双判定是更细且后出的规范，**它才是决定"这角翻不翻页"的那一条**。**处理方式**：**不自行修改 PRD**（PRD 是需求真源），在源码常量处与台账同时登记该冲突及采纳依据，**列为本项目待需求方确认项**。**诚实空态（未做/待后续）**：触感 `.light` 仍未真正调用（需 `UIImpactFeedbackGenerator`，跨平台不能直接引 UIKit，**待真机**）；折角**视觉图形未绘制**（状态与书签副作用已通）；延时任务用 `Task.sleep` 判定长按，**真机手感需校准**（`Task.sleep` 在负载下有调度抖动，严格实现宜用 `LongPressGesture` 的 `minimumDuration` 由系统驱动）；PRD 的「折角 24→60pt / 保持 3s」两项目前**均未实现**（视觉与保持态），故本轮只算"判定与副作用"落地。
 
 ---
+### D-88　FR-035 手动弃读落地（书架删除 ＋ 关联数据全清理）
+
+**随附交付登记（D-53 执行 · 开发包 #38）**：`BookShelfStore.abandon(bookID:...)` 弃读方法（含关联清理）；四个 store 补齐清理方法（`ReadingProgressStore.clear(bookID:)`／`BookmarksStore.removeAll(bookID:)`／`HighlightsStore.removeAll(bookID:)`／`VersionLabelStore.remove(bookID:)`）；`BookRow` 加 `contextMenu` 弃读入口 ＋ `ShelfScreen.abandonBook` ＋ `BookShelfAbandonTests`（5）。**测试**：InkSightApp **349 / 0**（344 ＋ 5），InkSightCore 41/0，iOS Simulator SDK Build complete。**落地（FR-035）**：①**弃读即从书架移除**（`items.remove`），并**必须清理关联数据**——阅读进度／书签／划线／本地检索索引／版本标签，**否则就是"幽灵书"（条目没了、数据还在）**；`abandon` 在锁外调用各 store 清理，避免多锁死锁。②**UI 用 `contextMenu` 长按**：书架是 `ScrollView`（非 `List`），无法用滑动删除，长按菜单是自然形态；破坏性动词「弃读」＋ `trash` 图标＋ `role: .destructive`＋无障碍动作。③测试覆盖：移除本身、无此书返回 false、**关联数据全清**、最后一本弃读后书架空（诚实空态）、**逐书隔离**（弃 A 不影响 B 的进度）。**诚实交互取舍**：弃读**不弹确认框**——「弃读」是破坏性动词，语义已明；数据不可恢复性在 README 与台账声明。**已知限制（如实登记）**：弃读**未物理删除文件**（`fileURL` 指向的原始 txt 仍在沙箱/导入源，仅从书架移除登记）——这是刻意取舍（文件可能来自外部导入源，删除用户原始文件越权）；`abandon` 的清理只覆盖**本 App 数据**，外部文件生命周期不归我们管。
+
+---
 ## 3. 状态索引
 
 ### 3.1 仍开放（客户后续再定）

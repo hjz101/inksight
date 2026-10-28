@@ -34,6 +34,12 @@ public final class HighlightsStore: @unchecked Sendable {
         highlights.append(highlight)
     }
 
+    /// FR-035 弃读清理：移除某书的全部划线。
+    public func removeAll(bookID: String) {
+        lock.lock(); defer { lock.unlock() }
+        highlights.removeAll { $0.bookID == bookID }
+    }
+
     public func remove(bookID: String, chapterID: Int, charOffset: Int) {
         lock.lock(); defer { lock.unlock() }
         highlights.removeAll {

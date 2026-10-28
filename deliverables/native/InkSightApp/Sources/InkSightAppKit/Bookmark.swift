@@ -67,6 +67,12 @@ public final class BookmarksStore: @unchecked Sendable {
         }
     }
 
+    /// FR-035 弃读清理：移除某书的全部书签。
+    public func removeAll(bookID: String) {
+        lock.lock(); defer { lock.unlock() }
+        bookmarks.removeAll { $0.bookID == bookID }
+    }
+
     public func allBookmarks() -> [Bookmark] {
         lock.lock(); defer { lock.unlock() }
         return bookmarks.sorted { $0.createdAt > $1.createdAt }

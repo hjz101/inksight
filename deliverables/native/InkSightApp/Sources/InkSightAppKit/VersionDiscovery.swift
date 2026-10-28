@@ -106,6 +106,15 @@ public final class VersionLabelStore: @unchecked Sendable {
         return labels[bookID]
     }
 
+    /// FR-035 弃读清理：移除某书的版本标签。
+    public func remove(bookID: String) throws {
+        lock.lock()
+        labels.removeValue(forKey: bookID)
+        let snapshot = labels
+        lock.unlock()
+        try persist(snapshot)
+    }
+
     /// 设置标签（空串视为清除 → 回落默认「未命名版本」）。
     public func setLabel(_ label: String, for bookID: String) throws {
         lock.lock()

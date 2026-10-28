@@ -147,3 +147,41 @@ public final class BookShelfStore: @unchecked Sendable {
         return items.first(where: { $0.lastReadAnchor != nil }) ?? items.first
     }
 }
+
+// MARK: - FR-035 手动弃读
+
+extension BookShelfStore {
+    /// 手动弃读（FR-035）：从书架移除该书并清理全部关联数据。
+    ///
+    /// **必须同时清理（否则就是"幽灵书"——条目没了，数据还在）**：
+    /// - 阅读进度（`ReadingProgressStore`）；
+    /// - 书签（`BookmarksStore`）；
+    /// - 划线/笔记（`HighlightsStore`）；
+    /// - 本地检索索引（`LocalSearchStore`，按 bookID 移除）；
+    /// - 版本标签（`VersionLabelStore`）。
+    ///
+    /// - Returns: 是否实际移除（无此书返回 false）。
+    @discardableResult
+    public func abandon(bookID: String,
+                        progressStore: ReadingProgressStore? = nil,
+                        bookmarksStore: BookmarksStore? = nil,
+                        highlightsStore: HighlightsStore? = nil,
+                        searchStore: LocalSearchStore? = nil,
+                        labelStore: VersionLabelStore? = nil) -> Bool {
+        lock.lock()
+        guard let idx = items.firstIndex(where: { $0.bookID == bookID }) else {
+            lock.unlock()
+            return false
+        }
+        items.remove(at: idx)
+        lock.unlock()
+
+        // 清理关联数据（在锁外执行，避免死锁——各 store 有自己的锁）
+        progressStore?.clear(bookID: bookID)
+        bookmarksStore?.removeAll(bookID: bookID)
+        highlightsStore?.removeAll(bookID: bookID)
+        searchStore?.removeBook(bookID: bookID)
+        try? labelStore?.remove(bookID: bookID)
+        return true
+    }
+}

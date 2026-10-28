@@ -251,7 +251,8 @@ struct ShelfScreen: View {
                     ContinueReadingCard(item: resume, onOpen: { openBook(resume) })
                 }
                 ForEach(bookShelf.items, id: \.bookID) { item in
-                    BookRow(item: item, onTap: { openBook(item) })
+                    BookRow(item: item, onTap: { openBook(item) },
+                            onAbandon: { abandonBook(item) })
                 }
             }
             .padding()
@@ -273,6 +274,22 @@ struct ShelfScreen: View {
         activeEngine = ReaderEngine(bookID: item.bookID, chapterID: chapterIndex, chapterText: text,
                                     typography: typography,
                                     containerSize: ReaderLayout.shared.containerSize)
+    }
+
+    /// FR-035 手动弃读：从书架移除并清理全部关联数据（进度/书签/划线/检索索引/版本标签）。
+    ///
+    /// 用 `contextMenu` 长按触发（书架是 ScrollView，非 List，无法用滑动删除）。
+    /// **诚实交互**：移除不弹确认框——弃读是明确动作，且数据不可恢复性已在菜单文案体现
+    /// （"弃读"是破坏性动词，不是"删除"这种中性词）。
+    private func abandonBook(_ item: BookShelfItem) {
+        _ = bookShelf.abandon(
+            bookID: item.bookID,
+            progressStore: ReadingProgressStore(),
+            bookmarksStore: BookmarksStore(),
+            highlightsStore: HighlightsStore(),
+            searchStore: searchStore,
+            labelStore: VersionLabelStore()
+        )
     }
 
     /// 处理导入结果：取消则不产生条目（诚实）；凭据命中则拒绝导入；成功则导入并立即打开首章。
@@ -334,6 +351,8 @@ private struct ContinueReadingCard: View {
 private struct BookRow: View {
     let item: BookShelfItem
     let onTap: () -> Void
+    /// FR-035 弃读：长按菜单（ScrollView 内无法用 List 滑动删除，contextMenu 是自然形态）。
+    var onAbandon: () -> Void = {}
 
     var body: some View {
         Button(action: onTap) {
@@ -349,6 +368,12 @@ private struct BookRow: View {
             .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            Button(role: .destructive, action: onAbandon) {
+                Label("弃读", systemImage: "trash")
+            }
+        }
+        .accessibilityAction(named: "弃读") { onAbandon() }
     }
 }
 

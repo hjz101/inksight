@@ -50,6 +50,12 @@ public final class ReadingProgressStore: @unchecked Sendable {
         return progresses[bookID]
     }
 
+    /// FR-035 弃读清理：移除某书的进度。
+    public func clear(bookID: String) {
+        lock.lock(); defer { lock.unlock() }
+        progresses.removeValue(forKey: bookID)
+    }
+
     public var allBookIDs: [String] {
         lock.lock(); defer { lock.unlock() }
         return Array(progresses.keys)
