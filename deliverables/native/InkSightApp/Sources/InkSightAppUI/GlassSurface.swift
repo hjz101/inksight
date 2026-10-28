@@ -53,6 +53,10 @@ struct GlassSurface<Content: View>: View {
     /// FR-014 四态收起：`steady`（全玻璃）/ `scrolling`（纯色+描边）/
     /// `transition`（材质冻结）/ `gesture`（纯色+描边）。默认 `steady`。
     var presentation: GlassPresentationState = .steady
+    /// FR-028 第 ③ 项：玻璃 tint 覆盖（nil ＝ 用档位默认 tint）。
+    /// 主题切换时由调用方传入 `ThemeSkinSpec.Spec.glassTint/Opacity`，
+    /// 使「玻璃 tint 与色散」随主题联动（DESIGN §3 判据四项之一）。
+    var themeTint: (hex: String, opacity: Double)? = nil
 
     /// - Parameters:
     ///   - strength: 玻璃强度 L1/L2/L3（tint 0.14/0.20/0.28——**仅 tint 强度，非材质切换**）。
@@ -62,12 +66,14 @@ struct GlassSurface<Content: View>: View {
     init(strength: GlassStrength, interactive: Bool = false,
          cornerRadius: CGFloat = 20,
          presentation: GlassPresentationState = .steady,
+         themeTint: (hex: String, opacity: Double)? = nil,
          @ViewBuilder content: () -> Content) {
         self.content = content()
         self.strength = strength
         self.interactive = interactive
         self.cornerRadius = cornerRadius
         self.presentation = presentation
+        self.themeTint = themeTint
     }
 
     var body: some View {
@@ -107,7 +113,13 @@ struct GlassSurface<Content: View>: View {
 
     /// kern 同款教训：**参数与档位正交**，不在档位表里混列（L1 加/L2 不加会制造假相关）。
     private var glass: Glass {
-        let base = Glass.regular.tint(.primary.opacity(strength.tintOpacity))
+        // FR-028：主题 tint 优先（主题联动）；否则用档位默认 tint。
+        let base: Glass
+        if let themeTint {
+            base = Glass.regular.tint(Color(hexString: themeTint.hex).opacity(themeTint.opacity))
+        } else {
+            base = Glass.regular.tint(.primary.opacity(strength.tintOpacity))
+        }
         return interactive ? base.interactive() : base
     }
 }

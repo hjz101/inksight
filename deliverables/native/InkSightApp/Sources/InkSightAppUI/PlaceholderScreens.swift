@@ -463,6 +463,9 @@ struct MeScreen: View {
     @State private var showBackup = false
     /// 主题状态（FR-010）：皮肤 + 夜航对比档 + 切换模式。
     @State private var themeState: ThemeState = ThemeStore().load()
+    /// FR-028 皮肤包：三套主题皮肤（四项联动）。
+    @State private var skinStore = ThemeSkinStore()
+    @State private var currentSkin: ThemeSkinSpec.Skin = ThemeSkinStore().skin
     /// FR-032 ③④：监护会话（**跨页面共享**；此前是 @State，视图重建会重载并重置锁定计数）。
     @StateObject private var guardianSession = GuardianSession.shared
     /// FR-032 ③：验证输入与反馈。
@@ -549,6 +552,34 @@ struct MeScreen: View {
                 // FR-032 ③④：未成年人模式的监护入口（**仅 .minorConfirmed 出现**）。
                 if ageState == .minorConfirmed {
                     guardianSection
+                }
+
+                // FR-028 皮肤包：三套主题（DESIGN §3.1 四项联动：图标/强调色/玻璃/转场）
+                Section {
+                    ForEach(ThemeSkinSpec.Skin.allCases, id: \.rawValue) { skin in
+                        Button {
+                            try? skinStore.setSkin(skin)
+                            currentSkin = skin
+                        } label: {
+                            HStack {
+                                // 强调色圆点（第 ② 项：强调色随主题变）
+                                Circle()
+                                    .fill(Color(hexString: ThemeSkinSpec.spec(for: skin).accentHex))
+                                    .frame(width: 16, height: 16)
+                                Text(skin.displayName)
+                                Spacer()
+                                if currentSkin == skin {
+                                    Image(systemName: "checkmark")
+                                        .font(.caption)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                } header: {
+                    Text("主题皮肤")
+                } footer: {
+                    Text("换主题时图标描边与端点、强调色、玻璃 tint 与色散、转场配色四项同时变——任一项不随主题动即判未完成。")
                 }
 
                 // FR-025 备份与恢复（设置与数据）：导出进度与偏好，不含正文。

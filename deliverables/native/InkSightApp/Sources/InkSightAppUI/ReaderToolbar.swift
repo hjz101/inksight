@@ -14,6 +14,8 @@ import InkSightAppKit
 struct ReaderToolbar: View {
     /// 四态收起（FR-014）：由上层按翻页/滚动状态驱动。
     var presentation: GlassPresentationState = .steady
+    /// FR-028：主题玻璃 tint（第 ③ 项，随主题联动）。
+    var themeTint: (hex: String, opacity: Double)? = nil
     /// 加书签回调（FR-011）。
     var onBookmark: () -> Void = {}
     /// 打开「换一个版本」面板（FR-018 主路径）。
@@ -26,10 +28,10 @@ struct ReaderToolbar: View {
     var onProgress: () -> Void = {}
     /// FR-012 朗读面板。
     var onTTS: () -> Void = {}
-
     var body: some View {
         GlassSurface(strength: .l1, interactive: true,
-                     cornerRadius: 18, presentation: presentation) {
+                     cornerRadius: 18, presentation: presentation,
+                     themeTint: themeTint) {
             HStack(spacing: 4) {
                 toolbarButton("目录", systemImage: "list.bullet", action: onTOC)
                 toolbarButton("进度", systemImage: "book.pages", action: onProgress)

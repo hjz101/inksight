@@ -87,6 +87,8 @@ public struct ReaderSurfaceView: View {
     @StateObject private var tts = TTSEngine()
     /// FR-012：朗读面板是否呈现。
     @State private var showTTS = false
+    /// FR-028：当前皮肤规格（四项联动：图标/强调色/玻璃/转场）。
+    @State private var skinSpec = ThemeSkinSpec.spec(for: ThemeSkinStore().skin)
     /// FR-018 版本对比：对比报告（nil ＝ 未打开）。
     @State private var compareReport: VersionDiff.Report?
     @State private var compareLeftName = ""
@@ -242,6 +244,7 @@ public struct ReaderSurfaceView: View {
                     if toolbarVisible {
                     ReaderToolbar(
                         presentation: glassPresentation,
+                        themeTint: (hex: skinSpec.glassTintHex, opacity: skinSpec.glassTintOpacity),
                         onBookmark: addBookmarkAtCurrentPage,
                         onSwapVersion: { showVersionPicker = true },
                         onSettings: {
