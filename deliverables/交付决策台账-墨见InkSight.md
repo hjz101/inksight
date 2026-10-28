@@ -530,6 +530,11 @@
 **随附交付登记（D-53 执行 · 开发包 #14）**：`deliverables/native/InkSightApp/`，新增 3 文件（`LocalSearchView`／`LocalSearchViewTests`／`BackupView`）＋ 改写 3 文件（`PlaceholderScreens` 接入口、`InkSightRootApp` 注入 searchStore、`LocalSearchStore` SearchHit 加 Hashable）。**主理人复跑验证**：InkSightApp **156 tests / 0 failures**（D-62 后 151 ＋ 本包新增 5：LocalSearchViewTests；既有全绿不回退）；InkSightCore 回归 **41/0**；iOS Simulator SDK Build complete；跨文档一致性 PASS 67 / FAIL 0。**FR-024a 检索 UI**：墨量 Tab 加「在本地书里找一句话」入口（PRD §2.0 Tab 映射：FR-024a 属墨量），检索视图含①搜索框（提交即检索）②诚实空态两分——「还没有可检索的内容」（未索引）与「没有找到匹配的内容」（已索引无命中）**不混为一谈**③结果列表给出书名/章号/片段。**展示层关键处理**：FTS5 中文按字索引的 snippet 形如「定 位 铁 律」，`prettySnippet` 按「空格两侧都是 CJK 才删」还原可读文本（保留中英之间分隔符，保留 `…` 命中标记）——新增 5 测试覆盖纯中文/纯英文/中英混排/命中标记/空输入。**FR-025 备份 UI**：「我」页加「备份与恢复」入口，含导出（生成带版本号的 JSON）与导入（fileImporter，未知更高版本拒绝并给出「请升级 App」的可读提示）。**门禁自捕获（本轮值得记录）**：`BackupView` 初版用裸 `data.write(to:)` 写导出文件，**被 `PersistTests.testBusinessLayerHasNoBareDiskWrites` 当场拦下**（报 `BackupView.swift: .write(to:`），改为经 `Persist.write` 门面。E-04 门面从「条款」变成真正拦得住的检查——这是本包最有价值的验证。**待真机（不混装）**：搜索框键盘/无障碍；fileImporter 在真机的沙箱授权路径；导出文件分享（当前只生成到临时目录，未接分享面板）。**诚实空态（本包未做/未验证）**：检索结果**未接跳转**（点击不进对应章节，`SearchHit` 已有 bookID/chapterIndex，跳转待阅读链路整合）；检索需先有索引（`indexBook` 为显式调用，导入路径未自动索引，见 D-62）；备份导出未接系统分享面板（文件只在临时目录）；导入未做冲突合并策略（按书覆盖）。
 
 ---
+### D-64　FR-024a 检索结果跳转阅读器＋导入自动建立 FTS 索引
+
+**随附交付登记（D-53 执行 · 开发包 #15）**：`deliverables/native/InkSightApp/`，新增 `ReaderNavigator`／`ReaderNavigatorTests`，改写检索视图、书架、根 Tab；**测试**：InkSightApp **159/0**（含 3 个导航路由测试），InkSightCore 41/0。**落地**：检索结果行可点击；`ReaderNavigator.shared` 以一次性请求跨 Tab 投递 `bookID/chapterIndex`；RootTabView 切换书架 Tab；ShelfScreen 消费请求并打开目标章节；本地文件导入成功后显式逐章建立 FTS 索引（索引失败不阻断阅读，搜索页诚实空态）。**诚实空态**：当前 SearchHit 尚不带字符偏移，跳转到章节而非命中字符位置；命中字符定位待后续接入 FTS offset/阅读器恢复链路。
+
+---
 ## 3. 状态索引
 
 ### 3.1 仍开放（客户后续再定）
