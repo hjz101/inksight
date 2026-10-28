@@ -1,4 +1,5 @@
 import Foundation
+import InkSightCore
 
 // MARK: - ReadingProgress（定位铁律的 Codable 落盘模型）
 
@@ -65,7 +66,10 @@ public final class ReadingProgressStore: @unchecked Sendable {
 
     public func persist(to url: URL) throws {
         let data = try encodedJSON()
-        try data.write(to: url, options: [.atomic])
+        // 落盘单门（E-04）：进度是用户数据，经 Persist 门面原子写。
+        // 进度不设备份排除——跨会话续读进度应随 iCloud 恢复（同排版/动效偏好语义）。
+        let result = Persist.write(data, to: url, payload: .readingProgress, excludedFromBackup: false)
+        try result.get()
     }
 
     public func load(from url: URL) throws {

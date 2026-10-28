@@ -29,24 +29,26 @@ public struct ReaderSurfaceView: View {
     let engine: ReaderEngine?
 
     /// 运行期会话（开发包 #8）：持有当前生效引擎与当前页，承载换排版与落点重定位。
-    @State private var session: ReaderSession
+    ///
+    /// **`@State` → `@StateObject` 修复（本次，台账待编号）**：`ReaderSession` 是
+    /// `ObservableObject`（`@Published engine/currentPage`），而 `@State` **只持有引用、
+    /// 不订阅变更**——换排版替换 `session.engine` 后视图不会失效，用户看不到重排结果。
+    /// `@StateObject` 才建立订阅。
+    @StateObject private var session: ReaderSession
 
     @State private var config: ReaderConfig = .default
-
-    /// 屏幕缩放（进 `TypographySignature`）。
-    @Environment(\.displayScale) private var displayScale
 
     public init(onExit: @escaping () -> Void) {
         self.onExit = onExit
         self.engine = nil
-        _session = State(initialValue: ReaderSession(engine: nil, coordinator: .shared))
+        _session = StateObject(wrappedValue: ReaderSession(engine: nil, coordinator: .shared))
     }
 
     public init(engine: ReaderEngine, onExit: @escaping () -> Void) {
         self.engine = engine
         self.onExit = onExit
         // 用 App 级单例协调器（与设置页共用同一套锚点缓存——见 `PaginationCoordinator.shared`）
-        _session = State(initialValue: ReaderSession(engine: engine, coordinator: .shared))
+        _session = StateObject(wrappedValue: ReaderSession(engine: engine, coordinator: .shared))
     }
 
     /// **换排版公开入口**（开发包 #8）：同步重排当前章 → 落点按**同一 `charOffset`**
@@ -69,16 +71,23 @@ public struct ReaderSurfaceView: View {
             if let live = session.engine {
                 VStack(spacing: 0) {
                     readerTopBar(live)
-                    ReaderPager(engine: live, page: pageBinding, mode: config.pageTurnMode) { size in
-                        handleSizeChange(size)
-                    }
+                    ReaderPager(engine: live, page: pageBinding, mode: config.pageTurnMode)
                         .onChange(of: session.currentPage) { _, _ in recordProgressIfPossible() }
                 }
-                .onAppear { prepareSession() }
-                .onDisappear { recordProgressIfPossible() }
             } else {
                 honestEmptyState
             }
+        }
+        // **`.onAppear` 位置修复（本次，台账待编号）**：旧写法把它挂在
+        // `if let live = session.engine { ... }` 分支**内部**——`engine == nil` 时该分支不渲染，
+        // 于是 `prepareSession()`（负责 `session.adopt(engine)`，把注入引擎装进会话）
+        // 永不执行，空态成了死锁，注入的引擎永远进不来。移到外层 ZStack 即修复。
+        .onAppear { prepareSession() }
+        .onDisappear {
+            recordProgressIfPossible()
+            // **会话结束即释放内存页**（合规四禁令第 4 条）。
+            // 此前只有签名变化才 invalidate，退出阅读器从不释放——禁令没有调用方。
+            session.endSession()
         }
     }
 
@@ -93,46 +102,32 @@ public struct ReaderSurfaceView: View {
     /// 进入阅读器：采纳注入引擎 ＋ 按**持久化预设**排版。
     ///
     /// 若持久化预设与当前引擎排版不同 → **走重排链路**（不静默沿用旧排版）；
-    /// 若引擎的排版容器尺寸已过期（阅读器实测尺寸与建引擎时不同）→ 同样走重排链路。
     /// 一致则直接恢复落点。
     private func prepareSession() {
         session.adopt(engine)
-        let layout = ReaderLayout.shared
         let preset = TypographyPresetStore().load()
-        if let live = session.engine,
-           live.typography != preset || live.containerSize != layout.containerSize {
-            session.applyTypography(preset,
-                                    containerSize: layout.containerSize,
-                                    screenScale: layout.screenScale)
+        if let live = session.engine, live.typography != preset {
+            session.applyTypography(preset)
         } else {
             session.restoreLanding()
         }
     }
 
-    /// 容器尺寸变化（旋转／分屏／首次实测）：更新**唯一来源** `ReaderLayout.shared`，
-    /// 并在引擎排版尺寸已过期时走重排链路——**不静默沿用旧排版**。
-    ///
-    /// 贯通意义：设置页与阅读器从此读同一尺寸 ⇒ 两端 `TypographySignature` 一致
-    /// ⇒ 同一本书在两端重排时**命中同一套锚点缓存**（NFR-11）。
-    private func handleSizeChange(_ size: CGSize) {
-        let layout = ReaderLayout.shared
-        let previousSize = layout.containerSize
-        let previousScale = layout.screenScale
-        layout.update(containerSize: size, screenScale: displayScale)
-        guard layout.containerSize != previousSize || layout.screenScale != previousScale else { return }
-        guard let live = session.engine, live.containerSize != layout.containerSize else { return }
-        session.applyTypography(live.typography,
-                                containerSize: layout.containerSize,
-                                screenScale: layout.screenScale)
-    }
-
     // MARK: - 进度回写（只 charOffset＋fingerprint）
 
     /// 页/滚动停止时回写：取当前页首 charOffset，只存 charOffset＋fingerprint（FR-011 / 定位铁律）。
+    ///
+    /// **数据丢失修复（本次，台账待编号）**：旧写法是
+    /// `live.page(at: session.currentPage)?.anchor.charOffset ?? 0` ——页索引一旦陈旧/越界
+    /// （换排版后 `currentPage` 尚未对齐、快速翻页边界等），`page(at:)` 返回 nil，
+    /// 于是 **offset 0 被当成"有效进度"落盘**，下次打开直接跳回章首，用户丢失阅读位置。
+    ///
+    /// 「取不到就别写」是唯一安全策略：**不上报**比**上报错误位置**要好——
+    /// 漏一次回写最多丢一页的精度，写错一次则丢掉整本书的阅读位置。
     private func recordProgressIfPossible() {
         guard let live = session.engine else { return }
-        let offset = live.page(at: session.currentPage)?.anchor.charOffset ?? 0
-        live.recordProgress(at: offset)
+        guard let page = live.page(at: session.currentPage) else { return }   // 索引越界 → 不写，绝不写 0
+        live.recordProgress(at: page.anchor.charOffset)
     }
 
     // MARK: - 顶栏（0 玻璃）
@@ -184,22 +179,8 @@ struct ReaderPager: View {
     let engine: ReaderEngine
     @Binding var page: Int
     var mode: PageTurnMode
-    /// 实测容器尺寸回报（**唯一尺寸来源** `ReaderLayout.shared` 的写入口）。
-    ///
-    /// 开发包 #10 容器尺寸贯通：阅读器实测真实尺寸 → 设置页与阅读器读同一来源
-    /// ⇒ 两端 `TypographySignature` 一致 ⇒ 锚点缓存真正互通。
-    var onSizeChange: (CGSize) -> Void = { _ in }
 
     var body: some View {
-        GeometryReader { geo in
-            pagerContent
-                .onAppear { onSizeChange(geo.size) }
-                .onChange(of: geo.size) { _, newValue in onSizeChange(newValue) }
-        }
-    }
-
-    @ViewBuilder
-    private var pagerContent: some View {
         switch mode {
         case .none:
             ReaderPageCanvas(engine: engine, pageIndex: page)

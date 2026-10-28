@@ -94,8 +94,8 @@ public final class ReaderSession: ObservableObject {
     /// 分页协调器（持有 `PageAnchorCache` / `CTFrameCache` 与后台队列）。
     public let coordinator: PaginationCoordinator
 
-    /// - Parameter coordinator: **默认即 App 级单例**（NFR-11：单例由**构造**保证，
-    ///   不靠「记得传 `.shared`」——漏传即静默退化成第二个真相，且无任何测试能捕捉）。
+    /// - Parameter coordinator: **默认即 App 级单例**（NFR-13：单例由**构造**保证，
+    ///   不靠「记得传 `.shared`」——漏传一次就静默退化成第二个真相，且无测试能捕捉）。
     ///   需要隔离（如单测）时**显式**传独立实例。
     public init(engine: ReaderEngine?, coordinator: PaginationCoordinator = .shared) {
         self.engine = engine
@@ -117,9 +117,25 @@ public final class ReaderSession: ObservableObject {
         guard let injected else { return }
         if let current = engine {
             guard current.bookID != injected.bookID || current.chapterID != injected.chapterID else { return }
+            // **换书（bookID 变）＝ 一个阅读会话结束**：释放旧书的内存页缓存
+            // （合规禁令第 4 条「切书即释放」；此前无任何调用方，禁令从未被执行）。
+            // 同书换章不释放——那会让翻页时反复重排，得不偿失，且不构成"新会话"。
+            if current.bookID != injected.bookID {
+                coordinator.releaseSession(clearingSignature: false)
+            }
         }
         engine = injected
         currentPage = injected.recoverPageIndex()
+    }
+
+    /// **会话结束**：释放全部内存页缓存（合规禁令第 4 条）。
+    ///
+    /// 调用时机：退出阅读器、切书、`scenePhase != .active`。
+    /// `CTFrame` 视同正文——「切书或会话结束即释放」是四禁令之一，
+    /// 此前 `invalidateAll()` 只在签名变化时到达，本方法是它缺失的调用方。
+    public func endSession() {
+        coordinator.releaseSession(clearingSignature: false)
+        lastOutcome = nil
     }
 
     /// 恢复落点：按进度记录里的 `charOffset` 经锚点二分定位到页（定位铁律）。
@@ -134,14 +150,10 @@ public final class ReaderSession: ObservableObject {
     /// （沿用 #3/#4/#5 的既有口径：误差 ≤ 新页覆盖的字符数）。
     ///
     /// 无正文时返回 `.noContent`——**诚实空态，不伪装成功**。
-    /// - Parameters:
-    ///   - containerSize: 容器尺寸——**默认取 `ReaderLayout.shared`（唯一来源）**，
-    ///     不引入第二套尺寸常量（开发包 #10 容器尺寸贯通）。
-    ///   - screenScale: 屏幕缩放——同上，取自 `ReaderLayout.shared`。
     @discardableResult
     public func applyTypography(_ typography: ReaderTypography,
-                                containerSize: CGSize = ReaderLayout.shared.containerSize,
-                                screenScale: Double = ReaderLayout.shared.screenScale,
+                                containerSize: CGSize = ReaderEngine.defaultContainerSize,
+                                screenScale: Double = 1.0,
                                 kinsoku: Kinsoku = .v1) -> RepaginationOutcome {
         guard let engine, !engine.chapterText.isEmpty else {
             let outcome = RepaginationOutcome(

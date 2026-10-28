@@ -41,6 +41,7 @@ final class RepaginationIntegrationTests: XCTestCase {
     /// 落点 `charOffset` 本身**不变**（定位铁律：靠 charOffset 重新二分，不靠 pageIndex）。
     func testRepaginationKeepsLandingOnSameCharOffset() throws {
         let engine = ReaderEngine(bookID: "b1", chapterID: 1, chapterText: sampleChapter())
+        // 显式独立协调器：NFR-13 默认构造即 .shared 单例，集成测试必须隔离，避免跨测试签名污染
         let session = ReaderSession(engine: engine, coordinator: PaginationCoordinator())
 
         // 落点取中间某页的页首（首字符太弱，取中间页才能真正检验「跨分页重定位」）
@@ -279,5 +280,72 @@ final class RepaginationIntegrationTests: XCTestCase {
             try? await Task.sleep(for: .milliseconds(20))
         }
         return condition()
+    }
+
+    // MARK: - 会话释放（合规四禁令第 4 条：切书/会话结束即释放）
+
+    /// **释放钩子必须真的清缓存**。
+    ///
+    /// 历史缺口：`CTFrame` 四禁令写着「切书或会话结束即释放」，但 `invalidateAll()`
+    /// 此前**只在签名变化时**被调用——切书、退出阅读器都没有调用方，
+    /// 即这条禁令在代码里从未被执行过。本测试锁住新增的显式释放路径。
+    func testEndSessionActuallyClearsCaches() {
+        let coordinator = PaginationCoordinator()
+        let engine = ReaderEngine(bookID: "book-a", chapterID: 1,
+                                  chapterText: sampleChapter(), typography: .default)
+        let session = ReaderSession(engine: engine, coordinator: coordinator)
+
+        // 先真正写入锚点缓存（通过 apply 走一遍重排链路）
+        let outcome = session.applyTypography(.default)
+        XCTAssertEqual(outcome.status, .ok)
+        let sig = outcome.newSignature
+        XCTAssertNotNil(coordinator.pageAnchorCache.anchors(for: 1, signatureHash: sig),
+                        "前置：apply 后锚点应已缓存")
+
+        // 会话结束 → 缓存必须被清空
+        session.endSession()
+        XCTAssertNil(coordinator.pageAnchorCache.anchors(for: 1, signatureHash: sig),
+                     "endSession 后锚点缓存必须清空（世代号已 +1，旧条目失配）")
+    }
+
+    /// **切书（bookID 变化）触发释放；同书换章不触发**。
+    func testAdoptNewBookReleasesOldSessionButSameBookDoesNot() {
+        let coordinator = PaginationCoordinator()
+        let bookA = ReaderEngine(bookID: "book-a", chapterID: 1, chapterText: sampleChapter(), typography: .default)
+        let session = ReaderSession(engine: bookA, coordinator: coordinator)
+        let outcome = session.applyTypography(.default)
+        let sig = outcome.newSignature
+        XCTAssertNotNil(coordinator.pageAnchorCache.anchors(for: 1, signatureHash: sig))
+
+        // 同书换章：不释放（否则翻页会反复重排）
+        let sameBookCh2 = ReaderEngine(bookID: "book-a", chapterID: 2, chapterText: sampleChapter(), typography: .default)
+        session.adopt(sameBookCh2)
+        XCTAssertNotNil(coordinator.pageAnchorCache.anchors(for: 1, signatureHash: sig),
+                        "同书换章不得释放缓存")
+
+        // 换书：必须释放
+        let bookB = ReaderEngine(bookID: "book-b", chapterID: 1, chapterText: sampleChapter(), typography: .default)
+        session.adopt(bookB)
+        XCTAssertNil(coordinator.pageAnchorCache.anchors(for: 1, signatureHash: sig),
+                     "换书必须释放旧书缓存（切书即释放）")
+    }
+
+    /// 释放后后台队列也必须清空——旧书的待重排章不得在新会话继续跑。
+    func testReleaseSessionClearsBackgroundQueue() {
+        let coordinator = PaginationCoordinator()
+        _ = coordinator.apply(.default, chapterText: sampleChapter(), chapterID: 1,
+                              containerSize: containerSize, screenScale: screenScale)
+        let pending = coordinator.enqueueBackgroundLazy([
+            (id: 2, textProvider: { self.sampleChapter() }),
+            (id: 3, textProvider: { self.sampleChapter() }),
+        ])
+        XCTAssertEqual(pending, 2)
+
+        coordinator.releaseSession()
+        // 队列已清 → 下一次处理应返回 nil
+        XCTAssertNil(coordinator.processOneBackgroundChapter(typography: .default,
+                                                            containerSize: containerSize,
+                                                            screenScale: screenScale),
+                     "释放后后台队列必须为空，不得继续处理旧书的章")
     }
 }

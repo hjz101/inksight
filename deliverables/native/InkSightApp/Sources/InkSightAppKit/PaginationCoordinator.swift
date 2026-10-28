@@ -165,6 +165,31 @@ public final class PaginationCoordinator: @unchecked Sendable {
         }
     }
 
+    // MARK: - 会话结束 / 切书：释放全部内存页（合规禁令第 4 条）
+
+    /// **合规禁令第 4 条的落地入口**：切书或阅读会话结束时调用，释放全部内存页缓存。
+    ///
+    /// 修复的历史缺口（台账待编号）：`CTFrame` 四禁令写着「切书或会话结束即释放」，
+    /// 但此前 `invalidateAll()` **只在签名变化时**被调用——切书、退出阅读器都没有调用方，
+    /// 即「释放」这条禁令在代码里从未被执行过。本方法把它变成可调用、可测量的显式动作。
+    ///
+    /// 释放范围：
+    /// - `CTFrameCache.invalidateAll()`——CTFrame 视同正文，必须清（本方法的主目的）；
+    /// - `PageAnchorCache.invalidateAll()`——锚点是派生量，本可保留，但切书后旧章的锚点
+    ///   已无复用价值，且留着会占 NFR-03 的内存预算，故一并释放；
+    /// - 后台队列清空——旧书的待重排章不得在新会话里继续跑。
+    ///
+    /// - Parameter clearingSignature: 是否同时清掉当前签名。
+    ///   切书＝true（新书需重新 apply）；仅退出阅读器而保留书架上下文＝false。
+    public func releaseSession(clearingSignature: Bool = true) {
+        pageAnchorCache.invalidateAll()
+        ctFrameCache.invalidateAll()
+        lock.lock()
+        backgroundQueue.removeAll()
+        if clearingSignature { _currentSignature = nil }
+        lock.unlock()
+    }
+
     // MARK: - 后台分批重分页（1 章/次；正文按需取用）
 
     /// 入队其余章（后台分批重分页）：返回入队后队列中**待处理章总数**（累积计数）。

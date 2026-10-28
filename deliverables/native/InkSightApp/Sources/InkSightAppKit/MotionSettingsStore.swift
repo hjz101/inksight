@@ -1,4 +1,5 @@
 import Foundation
+import InkSightCore
 
 // MARK: - MotionSettings（FR-030 ②：每 ID 独立开关的持久化模型）
 
@@ -91,11 +92,11 @@ public final class MotionSettingsStore: @unchecked Sendable {
         return decoded.normalized()
     }
 
-    /// 持久化动效开关：目录不存在则创建，原子写 `[.atomic]`。
+    /// 持久化动效开关：经 `Persist` 落盘单门（E-04）原子写。
     public func save(_ settings: MotionSettings) throws {
-        let directory = fileURL.deletingLastPathComponent()
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let data = try JSONEncoder().encode(settings.normalized())
-        try data.write(to: fileURL, options: [.atomic])
+        let result = Persist.write(data, to: fileURL, payload: .motionPreference,
+                                   excludedFromBackup: false)
+        try result.get()
     }
 }

@@ -106,4 +106,91 @@ final class TypesetterTests: XCTestCase {
             XCTAssertNotNil(hit, "连续全覆盖下 offset=\(offset) 必然命中")
         }
     }
+
+    // MARK: - 本次修复的回归测试（台账待编号）
+
+    /// **回归①：行宽不得超出内容框（超出容差）**。
+    ///
+    /// 历史缺陷：避头尾裁决把断点前推后**不复查预算**，标点密集处推出远超内容宽的行
+    /// （实测默认排版下红楼梦示例 14/141 行溢出、最宽超 22pt；标点密集样本 19/21 行溢出）。
+    /// 旧判据 `fr031MaxDelta` 只比对"我方预测 vs 我方成行"，同源恒 0，**结构上查不出**这个缺陷。
+    /// 容差＝一个全角字宽：行末标点悬挂是中文出版惯例，允许突出边栏一个字符。
+    func testLineWidthNeverExceedsContentBoxBeyondHangingTolerance() {
+        let samples: [(String, String)] = [
+            ("标点密集", String(repeating: "「これは」』》、。！？abc", count: 40)),
+            ("纯中文", String(repeating: "这是一段没有任何禁则标点的普通中文正文内容", count: 40)),
+            ("红楼梦节选", "此开卷第一回也。作者自云：因曾历过一番梦幻之后，故将真事隐去，而借通灵之说，撰此《石头记》一书也。"
+                + "故曰甄士隐云云。但书中所记何事何人？自又云：今风尘碌碌，一事无成，忽念及当日所有之女子，"
+                + "一一细考较去，觉其行止见识，皆出于我之上。何我堂堂须眉，诚不若彼裙钗哉？实愧则有余，悔又无益之大无可如何之日也！"),
+        ]
+        for (name, text) in samples {
+            let result = Typesetter(text: text, typography: typography,
+                                    containerSize: container, kinsoku: .v1).typesetChapter(chapterID: 0)
+            let tolerance = typography.fontSize   // 一个全角字宽
+            XCTAssertLessThanOrEqual(result.maxOverflow, tolerance,
+                "\(name)：行宽超出内容框 \(result.maxOverflow)pt > 容差 \(tolerance)pt（内容宽 \(result.contentWidth)pt）")
+        }
+    }
+
+    /// 溢出判据必须**真的能失败**——用极窄容器构造必然溢出的场景，
+    /// 若 `maxOverflow` 恒 0 则说明判据又退化成了恒真式。
+    func testOverflowMetricCanActuallyFailOnNarrowContainer() {
+        let narrow = CGSize(width: 52, height: 200)   // 内容宽 12pt < 单个全角字 20pt，必然溢出
+        let result = Typesetter(text: "这是一段很长很长的中文正文内容用于强制溢出",
+                                typography: typography, containerSize: narrow, kinsoku: .v1)
+            .typesetChapter(chapterID: 0)
+        XCTAssertGreaterThan(result.maxOverflow, 0,
+            "极窄容器下必须报出正溢出量；若为 0 说明 maxOverflow 未真正计算")
+    }
+
+    /// **回归②：`typography.fontID` 必须真的影响排版度量**。
+    ///
+    /// 历史缺陷：`Typesetter.init` 收独立 `fontName` 参数字面量默认 "PingFangSC-Regular"，
+    /// **从不读 `typography.fontID`**；而渲染侧 `CoreTextLineCompositor` 用 `typography.fontID`。
+    /// 换字体后锚点一字不变、但画出来的行宽变了——零位移在绘制阶段破功。
+    func testFontIDActuallyAffectsLayoutMetrics() {
+        // 注：**中文不行**——全角汉字在多数中文字体里 advance 恒为 1em（20pt），
+        // 换字体行宽不变是正确行为。要验证 fontID 是否参与度量，必须用**比例宽度**的拉丁文本。
+        let latin = "The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs."
+        var ping = typography
+        ping.fontID = "PingFangSC-Regular"
+        var times = typography
+        times.fontID = "Times New Roman"
+        var helvetica = typography
+        helvetica.fontID = "Helvetica"
+
+        func widths(_ t: ReaderTypography) -> [Double] {
+            Typesetter(text: latin, typography: t, containerSize: container, kinsoku: .v1)
+                .typesetChapter(chapterID: 0).lines.map(\.predictedWidth)
+        }
+        let a = widths(ping), b = widths(times), c = widths(helvetica)
+        XCTAssertNotEqual(a, b, "PingFang vs Times New Roman 行宽必须不同（fontID 必须参与度量）")
+        XCTAssertNotEqual(a, c, "PingFang vs Helvetica 行宽必须不同")
+        // 中文字宽恒为 1em，故中文行宽接近但不必刻意断言不同
+        let cjk = "此开卷第一回也，作者自云因曾历过一番梦幻之后，故将真事隐去。"
+        var s1 = typography; s1.fontID = "PingFangSC-Regular"
+        var s2 = typography; s2.fontID = "Songti SC"
+        let w1 = Typesetter(text: cjk, typography: s1, containerSize: container, kinsoku: .v1)
+            .typesetChapter(chapterID: 0).lines.map(\.predictedWidth)
+        let w2 = Typesetter(text: cjk, typography: s2, containerSize: container, kinsoku: .v1)
+            .typesetChapter(chapterID: 0).lines.map(\.predictedWidth)
+        XCTAssertFalse(w1.isEmpty || w2.isEmpty, "中文字体编排不应产出空行")
+    }
+
+    /// **回归③：字体回退字符（主字体缺字形）的测距必须与成行实测一致**。
+    ///
+    /// 历史缺陷：`CTFontGetGlyphsForCharacters` 对 PingFangSC 缺失的字形（日文假名等）
+    /// 返回 false，旧实现把宽度算成 **0**；但 CoreText 成行时会回退到其他字体，真实有宽度。
+    /// 后果：`delta` 达 **90pt**（实测标点密集样本含假名时），FR-031 误判不可行。
+    func testFontFallbackGlyphsMeasureCorrectly() {
+        // 假名不在 PingFangSC 字形表内，必须走回退
+        let text = String(repeating: "これは日本語のテキストです。", count: 20)
+        let result = Typesetter(text: text, typography: typography,
+                                containerSize: container, kinsoku: .v1).typesetChapter(chapterID: 0)
+        XCTAssertLessThanOrEqual(result.fr031MaxDelta, 0.5,
+            "字体回退字符测距偏差 \(result.fr031MaxDelta)pt > 0.5pt（预期回退宽度曾被算成 0）")
+        XCTAssertTrue(result.fr031Passes)
+        // 回退字符必须有非零宽度（否则整行会被误判为空行）
+        XCTAssertGreaterThan(result.lines.map(\.predictedWidth).max() ?? 0, 0)
+    }
 }

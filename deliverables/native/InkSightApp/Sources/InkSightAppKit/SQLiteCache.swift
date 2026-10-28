@@ -65,8 +65,9 @@ public final class SQLiteCache: @unchecked Sendable {
         self.databaseURL = databaseURL
         self.maxCacheBytes = max(1, maxCacheBytes)
 
-        let dir = databaseURL.deletingLastPathComponent()
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        // 建目录经 Persist 门面（E-04：所有写盘路径过门面；SQLite 以文件句柄打开，
+        // 建目录这一步同样申报 payload 类型）
+        _ = Persist.prepareDirectory(for: databaseURL)
 
         let code = databaseURL.path.withCString { cpath in
             sqlite3_open_v2(cpath, &db,
@@ -76,7 +77,8 @@ public final class SQLiteCache: @unchecked Sendable {
             throw SQLiteCacheError.openFailed(code)
         }
         try applySchema()
-        try setExcludedFromBackup()
+        // 结构元数据（可重建）排除备份——经 Persist 门面统一出口
+        Persist.applyExcludedFromBackup(to: databaseURL)
     }
 
     deinit {
@@ -101,9 +103,11 @@ public final class SQLiteCache: @unchecked Sendable {
                 sqlite3_bind_int64(stmt, 4, Int64(a.charLength))
                 sqlite3_bind_int64(stmt, 5, Int64(a.lineCount))
                 sqlite3_bind_int64(stmt, 6, Int64(bitPattern: a.fingerprint))
-                sqlite3_step(stmt)
+                let rc = sqlite3_step(stmt)
                 sqlite3_reset(stmt)
+                if rc != SQLITE_DONE { return rc }   // 逐行失败上浮，不吞
             }
+            return nil
         }
     }
 
@@ -123,9 +127,11 @@ public final class SQLiteCache: @unchecked Sendable {
                 sqlite3_bind_text(stmt, 3, c.title, -1, SQLiteCache.SQLITE_TRANSIENT)
                 sqlite3_bind_int64(stmt, 4, Int64(c.byteOffset))
                 sqlite3_bind_int64(stmt, 5, Int64(c.byteLength))
-                sqlite3_step(stmt)
+                let rc = sqlite3_step(stmt)
                 sqlite3_reset(stmt)
+                if rc != SQLITE_DONE { return rc }
             }
+            return nil
         }
     }
 
@@ -146,9 +152,11 @@ public final class SQLiteCache: @unchecked Sendable {
                 sqlite3_bind_int64(stmt, 4, Int64(r.charOffset))
                 sqlite3_bind_int64(stmt, 5, Int64(bitPattern: r.startFingerprint))
                 sqlite3_bind_int64(stmt, 6, Int64(bitPattern: r.endFingerprint))
-                sqlite3_step(stmt)
+                let rc = sqlite3_step(stmt)
                 sqlite3_reset(stmt)
+                if rc != SQLITE_DONE { return rc }
             }
+            return nil
         }
     }
 
@@ -171,6 +179,15 @@ public final class SQLiteCache: @unchecked Sendable {
         return names
     }
 
+    /// 执行一条不走白名单的 DDL（**仅供测试构造真实故障场景**）。
+    ///
+    /// 生产代码不得调用——它绕过表白名单，存在的唯一理由是让契约测试能够
+    /// 构造「表被删/结构损坏」这类无法从公开 API 触发的真实故障。
+    func executeForTesting(_ sql: String) {
+        lock.lock(); defer { lock.unlock() }
+        sqlite3_exec(db, sql, nil, nil, nil)
+    }
+
     /// 当前预估已存负载字节（硬闸判据，供测试断言）。
     public var currentStoredBytesEstimate: Int {
         lock.lock(); defer { lock.unlock() }
@@ -179,9 +196,28 @@ public final class SQLiteCache: @unchecked Sendable {
 
     // MARK: - 内部
 
+    /// 执行一批写操作。
+    ///
+    /// **本次两处修复（台账待编号）**：
+    ///
+    /// **① `sqlite3_step` 返回值被丢弃**：旧实现在闭包里裸调 `sqlite3_step(stmt)` 不看返回码，
+    /// 于是主键冲突、约束失败、磁盘满等**逐行写入失败都会报 `.success`**——上层认为落盘成功，
+    /// 实际数据没进去。现在收集逐行返回码，任一失败即整批返回 `.stepFailed` 且**不计入字节**。
+    ///
+    /// **② 配额计数器只增不减**：`storedBytesEstimate` 只在写入时累加，`INSERT OR REPLACE`
+    /// 覆盖同一主键或删行时从不扣减，也不复位 → 反复重排同一本书会持续虚高，
+    /// 最终**永久返回 `.quotaExceeded`**（缓存彻底不可写，只能重装 App）。
+    /// 现在：估算逼近上限时用 SQLite 的真实页数（`page_count × page_size`）校正一次——
+    /// 正常路径仍走廉价的估算累加（保持既有契约的精确语义），只有快要误判时才付真实统计的成本。
     private func write(estimate: Int, sql: String,
-                       _ body: (OpaquePointer) -> Void) -> Result<Void, SQLiteCacheError> {
+                       _ body: (OpaquePointer) -> Int32?) -> Result<Void, SQLiteCacheError> {
         lock.lock(); defer { lock.unlock() }
+
+        // 估算逼近上限（≥80%）→ 用真实库大小校正，避免虚高导致永久拒写
+        if storedBytesEstimate > maxCacheBytes * 4 / 5 {
+            storedBytesEstimate = actualDatabaseBytesLocked()
+        }
+
         // 8MB 硬闸：预估越限即整批拒写（不触碰 DB）
         guard storedBytesEstimate + estimate <= maxCacheBytes else {
             return .failure(.quotaExceeded)
@@ -191,9 +227,28 @@ public final class SQLiteCache: @unchecked Sendable {
             return .failure(.prepareFailed(sqlite3_errcode(db)))
         }
         defer { sqlite3_finalize(s) }
-        body(s)
+        // 逐行写入失败必须上浮，不能吞掉（否则「写成功」是假的）
+        if let failure = body(s) {
+            return .failure(.stepFailed(failure))
+        }
         storedBytesEstimate += estimate
         return .success(())
+    }
+
+    /// 真实库大小（`page_count × page_size`），仅在校正时调用（持锁假设：调用方已持锁）。
+    private func actualDatabaseBytesLocked() -> Int {
+        var pageCount: Int64 = 0, pageSize: Int64 = 0
+        var stmt: OpaquePointer?
+        if sqlite3_prepare_v2(db, "PRAGMA page_count;", -1, &stmt, nil) == SQLITE_OK, let s = stmt {
+            if sqlite3_step(s) == SQLITE_ROW { pageCount = sqlite3_column_int64(s, 0) }
+            sqlite3_finalize(s)
+        }
+        stmt = nil
+        if sqlite3_prepare_v2(db, "PRAGMA page_size;", -1, &stmt, nil) == SQLITE_OK, let s = stmt {
+            if sqlite3_step(s) == SQLITE_ROW { pageSize = sqlite3_column_int64(s, 0) }
+            sqlite3_finalize(s)
+        }
+        return Int(pageCount * pageSize)
     }
 
     private func applySchema() throws {
@@ -237,17 +292,6 @@ public final class SQLiteCache: @unchecked Sendable {
             }
         }
     }
-
-    /// NFR-03 备份纪律：缓存库与所在目录均排除 iCloud 备份（`NSURLIsExcludedFromBackupKey`）。
-    private func setExcludedFromBackup() throws {
-        var fileValues = URLResourceValues()
-        fileValues.isExcludedFromBackup = true
-        var fileURL = databaseURL
-        try fileURL.setResourceValues(fileValues)
-
-        var dirURL = databaseURL.deletingLastPathComponent()
-        var dirValues = URLResourceValues()
-        dirValues.isExcludedFromBackup = true
-        try dirURL.setResourceValues(dirValues)
-    }
+    // NFR-03 备份纪律（缓存库与目录排除 iCloud 备份）已上收至 `Persist.applyExcludedFromBackup`
+    // ——落盘单门（E-04）要求所有写盘相关操作走同一出口，此处不再保有一份私有实现。
 }

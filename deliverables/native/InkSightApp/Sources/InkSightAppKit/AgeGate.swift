@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import InkSightCore
 
 // MARK: - GlassSpec（材质三档，数据层——InkSightAppKit 可测）
 
@@ -96,7 +97,8 @@ public enum AgeGateMatrix {
                 importFiles: .granted, onlineSources: .absent, settingsPath: .absent, autoExit: .notApplicable)
         case (.minorConfirmed, _):
             // 宵禁 ✓、时长 ✓；release 下导入/在线/系统路径 ∅；research 在线 ✗、导入 ∅
-            let importFiles: Presence = variant == .release ? .absent : .absent   // 两变体均为 ∅（AGE_MATRIX：minorConfirmed 导入 ∅）
+            // 注：`importFiles` 两变体均为 ∅（AGE_MATRIX：minorConfirmed 导入 ∅），
+            // 故不再用同值三目（旧写法 `variant == .release ? .absent : .absent` 是死代码）。
             let onlineSources: Presence = variant == .release ? .absent : .restricted
             return AgeGateCell(curfew: true, dailyQuota: true,
                 importFiles: .absent, onlineSources: onlineSources, settingsPath: .absent, autoExit: .never)
@@ -179,4 +181,27 @@ public struct BundledSettingsPathProvider: SettingsPathProviding {
 public enum DailyReadingQuota {
     /// 分钟数：TBD。调用方不得对此解包出数字用于倒计时（副文案不做倒计时）。
     public static var minutesTBD: Int? { nil }
+}
+
+// MARK: - Fetcher 访问策略映射（总册「三个门面」之一：未成年人模式整体 denyAll）
+
+extension AgeGateState {
+    /// 当前年龄态对应的出网访问策略（Fetcher 门面用）。
+    ///
+    /// - `.minorConfirmed` → **`.denyAll`**：未成年人模式整体断网（总册 Fetcher 门面；
+    ///   技术约束清单 NFR-04「BGTaskScheduler 不注册抓取任务（同时是未成年人模式断网的实现基础）」）。
+    /// - 其余三态 → `.allow`（网络能力是否"存在"由 `AgeGateMatrix.cell(...).onlineSources` 决定，
+    ///   门面只管"策略允不允许出网"，两者正交：release 变体下 `onlineSources == .absent`
+    ///   是"结构上不生成入口"，与"出网被策略拒绝"是两件事）。
+    public var fetcherAccessPolicy: Fetcher.AccessPolicy {
+        switch self {
+        case .minorConfirmed: return .denyAll
+        case .adultConfirmed, .ageUnresolved, .unverified: return .allow
+        }
+    }
+
+    /// 应用当前年龄态到 Fetcher 全局策略（App 启动 / 年龄态变化时调用一次）。
+    public func applyToFetcher() {
+        Fetcher.currentPolicy = fetcherAccessPolicy
+    }
 }

@@ -535,6 +535,10 @@ struct MeScreen: View {
         guard let shelf = bookShelf,
               let text = shelf.chapterText(for: item, chapterIndex: chapterIndex),
               !text.isEmpty else {
+            // 降级门面（D-15）：章节正文取不到 → chapterLoadFailed（清单登记 declaresData=false，
+            // 「本章加载失败」+ 原因 + 重试）。门面只登记事件，UI 文案仍由本处诚实空态给出。
+            _ = Degradation.degrade(kind: .chapterLoadFailed, declaresData: false,
+                                    detail: "重排当前章：正文取不到（书=\(item.title) 章=\(chapterIndex)）")
             repaginationFeedback = "无可重排内容：当前书的章节正文不可读。"
             return
         }

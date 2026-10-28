@@ -113,4 +113,68 @@ final class SQLiteCacheTests: XCTestCase {
         XCTAssertNoThrow(try cache.upsertFR024b(bookID: "b", []).get())
         XCTAssertEqual(cache.currentStoredBytesEstimate, 0)
     }
+
+    // MARK: - 本次修复的回归测试（台账待编号）
+
+    /// **回归①：反复覆盖写同一主键不得让配额计数器虚高**。
+    ///
+    /// 历史缺陷：`storedBytesEstimate` 只增不减，`INSERT OR REPLACE` 覆盖时也照加，
+    /// 反复重排同一本书会让估算持续膨胀，最终**永久返回 `.quotaExceeded`**（缓存不可写）。
+    func testRepeatedOverwriteDoesNotInflateQuota() throws {
+        let parent = FileManager.default.temporaryDirectory
+            .appendingPathComponent("inksight-overwrite-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: parent) }
+        let url = parent.appendingPathComponent("cache.db")
+
+        // cap 取 64KB：若计数器单调累加，50 次覆盖写会耗尽
+        let capped = try SQLiteCache(databaseURL: url, maxCacheBytes: 64 * 1024)
+        let anchors = (0..<10).map {
+            PageAnchor(chapterID: 1, charOffset: $0 * 100, charLength: 100,
+                       lineCount: 5, fingerprint: UInt64($0))
+        }
+        // 同一批锚点反复覆盖 50 次（模拟反复重排同一章）
+        for _ in 0..<50 {
+            XCTAssertNoThrow(try capped.upsertPageAnchors(bookID: "b", anchors).get(),
+                             "覆盖写不得因配额虚高被拒")
+        }
+        XCTAssertLessThanOrEqual(capped.currentStoredBytesEstimate, 64 * 1024,
+                                 "反复覆盖后估算不得越限")
+    }
+
+    /// **回归②：逐行写入失败必须上浮，不能报 `.success`**。
+    ///
+    /// 历史缺陷：闭包里裸调 `sqlite3_step(stmt)` 丢弃返回码——主键冲突、约束失败、
+    /// 表被删等逐行失败全部被吞，上层拿到 `.success` 却什么都没写进去。
+    ///
+    /// 构造方式：**先 DROP 掉目标表**，此后 INSERT 必然以 `SQLITE_ERROR` 失败。
+    /// （注：只读文件不构成本测试的有效构造——SQLite 用目录级锁，只读属主文件仍可写。）
+    func testStepFailureIsNotSwallowed() throws {
+        let parent = FileManager.default.temporaryDirectory
+            .appendingPathComponent("inksight-stepfail-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: parent) }
+        let url = parent.appendingPathComponent("cache.db")
+        let cache = try SQLiteCache(databaseURL: url)
+
+        // 对照组：表存在时正常成功
+        let ok = cache.upsertPageAnchors(bookID: "b", [
+            PageAnchor(chapterID: 1, charOffset: 0, charLength: 10, lineCount: 1, fingerprint: 1)
+        ])
+        XCTAssertNoThrow(try ok.get(), "对照组：表存在时应成功")
+
+        // 用 cache 自己的连接把表删掉（模拟"表不见了"这类真实故障）
+        cache.executeForTesting("DROP TABLE page_anchors;")
+
+        let failed = cache.upsertPageAnchors(bookID: "b", [
+            PageAnchor(chapterID: 2, charOffset: 0, charLength: 10, lineCount: 1, fingerprint: 2)
+        ])
+        var threw = false
+        do {
+            try failed.get()
+        } catch {
+            threw = true
+        }
+        XCTAssertTrue(threw, "表不存在时的写入必须上浮为错误；报 .success 说明 step 返回码仍被吞掉")
+    }
 }

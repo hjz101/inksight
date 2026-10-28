@@ -45,13 +45,13 @@ public final class TypographyPresetStore: @unchecked Sendable {
         return decoded
     }
 
-    /// 持久化预设：目录不存在则创建，原子写 `[.atomic]`（与 `ReadingProgressStore.persist` 同源）。
+    /// 持久化预设：经 `Persist` 落盘单门（E-04）原子写。
     ///
     /// 注意：**不设 `NSURLIsExcludedFromBackupKey`**——用户偏好应可随 iCloud／本地备份恢复。
     public func save(_ typography: ReaderTypography) throws {
-        let directory = fileURL.deletingLastPathComponent()
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let data = try JSONEncoder().encode(typography)
-        try data.write(to: fileURL, options: [.atomic])
+        let result = Persist.write(data, to: fileURL, payload: .typographyPreference,
+                                   excludedFromBackup: false)
+        try result.get()
     }
 }

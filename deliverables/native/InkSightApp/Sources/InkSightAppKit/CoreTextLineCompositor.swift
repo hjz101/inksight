@@ -35,20 +35,12 @@ public struct CoreTextLineCompositor {
 
         // 行盒 = 字号 × 倍数（min = max，CoreText 的 lineSpacing 机制性失效，
         // 杜绝「1.75＋默认行距」）。与 Typesetter 完全同构。
-        var lineHeight = CGFloat(typography.lineHeight)
-        var spacingBefore = CGFloat(typography.paragraphSpacingBefore)
-        var spacingAfter = CGFloat(typography.paragraphSpacingAfter)
-        let settings: [CTParagraphStyleSetting] = [
-            CTParagraphStyleSetting(spec: .minimumLineHeight,
-                                   valueSize: MemoryLayout<CGFloat>.size, value: &lineHeight),
-            CTParagraphStyleSetting(spec: .maximumLineHeight,
-                                   valueSize: MemoryLayout<CGFloat>.size, value: &lineHeight),
-            CTParagraphStyleSetting(spec: .paragraphSpacingBefore,
-                                   valueSize: MemoryLayout<CGFloat>.size, value: &spacingBefore),
-            CTParagraphStyleSetting(spec: .paragraphSpacing,
-                                   valueSize: MemoryLayout<CGFloat>.size, value: &spacingAfter),
-        ]
-        let para = CTParagraphStyleCreate(settings, settings.count)
+        //
+        // **`[#TemporaryPointers]` 修复（本次，台账待编号）**：旧写法此处同样有 4 处
+        // `value: &localVar`——指针生命周期短于 `CTParagraphStyleCreate` 可能的使用期，
+        // 属未定义行为。改为复用 `Typesetter.makeParagraphStyle`：既消除 UB，又让
+        // 「排版侧与渲染侧段落样式同构」从"两处复制保持一致"升级为**结构保证**。
+        let para = Typesetter.makeParagraphStyle(typography: typography)
 
         // kern 显式置 0：禁掉上下文 kern，使「孤立测距累加」与「成行实测」可比（FR-031 判据基础）。
         let attrs: [NSAttributedString.Key: Any] = [
