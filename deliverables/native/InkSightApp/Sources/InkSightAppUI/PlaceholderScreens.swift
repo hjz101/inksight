@@ -90,10 +90,32 @@ private struct OnlineSourcesRegion: View {
 struct InkScreen: View {
     let bookShelf: BookShelfStore
 
+    /// 本地检索仓库（FR-024a）；nil ＝ 未注入（诚实空态）。
+    var searchStore: LocalSearchStore?
+    @State private var showSearch = false
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Text("墨量").font(.title.bold())
+
+                // FR-024a 本地全文检索入口（检索面：墨量 Tab，PRD §2.0）
+                Button {
+                    showSearch = true
+                } label: {
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                        Text("在本地书里找一句话")
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+                }
+                .buttonStyle(.plain)
                 GlassSurface(strength: .l2, interactive: false) {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("阅读成就").font(.headline)
@@ -110,6 +132,9 @@ struct InkScreen: View {
                 }
             }
             .padding()
+        }
+        .sheet(isPresented: $showSearch) {
+            LocalSearchView(searchStore: searchStore)
         }
     }
 }
@@ -275,6 +300,8 @@ struct MeScreen: View {
     @State private var showMotionRuntime = false
     /// 版权投诉表单是否呈现（FR-033 P0 合规基座：设置内常驻入口）。
     @State private var showComplaint = false
+    /// 备份与恢复视图是否呈现（FR-025 设置与数据）。
+    @State private var showBackup = false
 
     /// 场景相位：`scenePhase != .active` 立即停后台重排
     /// （对齐 NFR-04「`scenePhase != .active` 立即 `cancelAllTasks()`」的纪律精神）。
@@ -317,6 +344,17 @@ struct MeScreen: View {
                 } footer: {
                     Text("投诉通达邮箱为占位（发行前必须替换，发布闸门 A9/A10 不可豁免）；受理回执 48h，处理 15 工作日。")
                 }
+
+                // FR-025 备份与恢复（设置与数据）：导出进度与偏好，不含正文。
+                Section {
+                    Button {
+                        showBackup = true
+                    } label: {
+                        Label("备份与恢复", systemImage: "externaldrive")
+                    }
+                } footer: {
+                    Text("导出阅读进度、排版与动效偏好（不含任何书籍正文）；格式带版本号，旧备份可迁移。")
+                }
             }
         }
         // 动效运行时面板（开发包 #9/#10）：13 个动效的真实可播实现 ＋ 真实触发点。
@@ -330,6 +368,10 @@ struct MeScreen: View {
         // 版权投诉表单（FR-033）：表单是信息承载，走系统 sheet（非玻璃白名单容器）。
         .sheet(isPresented: $showComplaint) {
             CopyrightComplaintView()
+        }
+        // FR-025 备份与恢复
+        .sheet(isPresented: $showBackup) {
+            BackupView(service: BackupService())
         }
         // 预设改动即时落盘（单门 JSON 原子写；不设备份排除键——用户偏好应可备份）
         .onChange(of: preset) { try? TypographyPresetStore().save(preset) }

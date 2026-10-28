@@ -12,6 +12,8 @@ public struct RootTabView: View {
     /// 数据层（开发包 #3）：书架仓库。骨架期默认空仓库；发行版由 App 注入真实实例。
     /// （`ReadingProgressStore` 作为可落盘的进度模型已交付并由单测覆盖；骨架期续读锚点经 `BookShelfItem.lastReadAnchor` 承载。）
     private let bookShelf: BookShelfStore
+    /// 本地检索仓库（FR-024a）：App 级单例（索引跨页面复用）；初始化失败则为 nil（诚实空态）。
+    private let searchStore: LocalSearchStore?
 
     /// 系统「减弱动态效果」——**优先级最高**：开启时任何动效都不播（但**功能不减**）。
     /// 同步到唯一动画入口（`MotionCoordinator`），由它统一裁决（FR-030）。
@@ -19,15 +21,16 @@ public struct RootTabView: View {
 
     public init(ageState: AgeGateState, variant: BuildVariant, onOpenReader: @escaping () -> Void) {
         self.init(ageState: ageState, variant: variant, onOpenReader: onOpenReader,
-                  bookShelf: BookShelfStore())
+                  bookShelf: BookShelfStore(), searchStore: nil)
     }
 
     init(ageState: AgeGateState, variant: BuildVariant, onOpenReader: @escaping () -> Void,
-         bookShelf: BookShelfStore) {
+         bookShelf: BookShelfStore, searchStore: LocalSearchStore? = nil) {
         self.ageState = ageState
         self.variant = variant
         self.onOpenReader = onOpenReader
         self.bookShelf = bookShelf
+        self.searchStore = searchStore
     }
 
     public var body: some View {
@@ -36,7 +39,7 @@ public struct RootTabView: View {
                 .tabItem { Label("发现", systemImage: "sparkles") }
             ShelfScreen(bookShelf: bookShelf, onOpenReader: onOpenReader)
                 .tabItem { Label("书架", systemImage: "books.vertical") }
-            InkScreen(bookShelf: bookShelf)
+            InkScreen(bookShelf: bookShelf, searchStore: searchStore)
                 .tabItem { Label("墨量", systemImage: "drop") }
             MeScreen(ageState: ageState, variant: variant, bookShelf: bookShelf)
                 .tabItem { Label("我", systemImage: "person") }

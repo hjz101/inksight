@@ -46,7 +46,7 @@ public final class LocalSearchStore: @unchecked Sendable {
     }
 
     /// 搜索命中项。
-    public struct SearchHit: Equatable, Sendable {
+    public struct SearchHit: Equatable, Hashable, Sendable {
         public let bookID: String
         public let bookTitle: String
         public let chapterIndex: Int
