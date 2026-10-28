@@ -273,6 +273,8 @@ struct MeScreen: View {
     @StateObject private var backgroundModel = RepaginationStatusModel()
     /// 动效运行时面板是否呈现（开发包 #9/#10：13 个动效的真实可播实现 ＋ 真实触发点）。
     @State private var showMotionRuntime = false
+    /// 版权投诉表单是否呈现（FR-033 P0 合规基座：设置内常驻入口）。
+    @State private var showComplaint = false
 
     /// 场景相位：`scenePhase != .active` 立即停后台重排
     /// （对齐 NFR-04「`scenePhase != .active` 立即 `cancelAllTasks()`」的纪律精神）。
@@ -305,6 +307,16 @@ struct MeScreen: View {
                 settingsSection
                 repaginationSection
                 motionSection
+                // FR-033 版权声明与投诉（P0 合规基座）：设置内**常驻入口**。
+                Section {
+                    Button {
+                        showComplaint = true
+                    } label: {
+                        Label("版权声明与投诉", systemImage: "exclamationmark.shield")
+                    }
+                } footer: {
+                    Text("投诉通达邮箱为占位（发行前必须替换，发布闸门 A9/A10 不可豁免）；受理回执 48h，处理 15 工作日。")
+                }
             }
         }
         // 动效运行时面板（开发包 #9/#10）：13 个动效的真实可播实现 ＋ 真实触发点。
@@ -314,6 +326,10 @@ struct MeScreen: View {
                 MotionRuntimeScreen()
                     .transition(.identity)
             }
+        }
+        // 版权投诉表单（FR-033）：表单是信息承载，走系统 sheet（非玻璃白名单容器）。
+        .sheet(isPresented: $showComplaint) {
+            CopyrightComplaintView()
         }
         // 预设改动即时落盘（单门 JSON 原子写；不设备份排除键——用户偏好应可备份）
         .onChange(of: preset) { try? TypographyPresetStore().save(preset) }
