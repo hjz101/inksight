@@ -679,6 +679,8 @@
 
 **随附交付登记（D-53 执行 · 开发包 #42）**：新增 `ReadingMetrics`（统计引擎）／`ReadingMetricsModel`（UI 订阅包装）／`ShareCardView`（配色分享卡）＋ 测试 `ReadingMetricsTests`（9）／`InkMetricsContractTests`（6）；`InkScreen` 接真实统计展示；`ReaderSurface` 退出时上报阅读时长。**测试**：InkSightApp **393 / 0**（378 ＋ 15），InkSightCore 41/0，iOS Simulator SDK Build complete。**闭环掉「需确认边界」的 FR-023**：此前墨量页只有「已导入 N 本」的静态文案，**无统计引擎**。现在：①**四项统计**（PRD FR-023 原文）——**时长**（累计/今日分钟）／**本数**（书架真实项数）／**连续天**（按上报日期去重后从今天或昨天向前数，中断即断）／**时段分布**（晨 5–11／午 11–17／晚 17–22／夜 22–5）②**数据来源真实**——阅读器 `onAppear` 记 `sessionStart`、`onDisappear` 算差值上报；**<1 分钟不计**（噪声抑制：翻一眼不该算阅读）③**诚实空态**——无记录时显示「**尚未记录**」而**不伪造 0 分钟**（有测试断言）④**分享卡用配色生成**——`LinearGradient` 渐变 ＋ 统计文本，**不使用第三方书封图**（PRD 明文；测试断言源码不含 `AsyncImage`/`coverImageData`）。**测试设计要点**：统计引擎用**注入固定时区日历**（`Calendar(timeZone: GMT)`）测时段与连续天——**不依赖系统时区**，否则跨时区跑测试会飘（这是本轮刻意的测试纪律）。**诚实空态（未做/待后续）**：「阅读轨迹上的**切换点 6pt 中性圆点**」未做（FR-023 后半段的轨迹可视化，需轨迹数据结构）；分享卡**只有文本分享**（`ShareLink` 纯文本），**未生成图片卡**（PRD 说"卡面用配色生成"，本包做了渐变卡面 UI 但分享出去的是文本，图片渲染待后续）；统计**未持久化**（`ReadingMetrics` 在内存，重启清零——需落盘才能在真机验证；这是明确缺口）；`ReadingMetricsModel` 未在 App 启动时注入书架（靠 `InkScreen.onAppear` 赋值，首次进墨量页前为 0 本）。
 
+**补记（同批）**：D-92 初版统计**只在内存**（重启清零，已在该条如实登记为缺口）。本轮补 `ReadingMetrics` 落盘（经 `Persist` 门面写 `ReadingSessions.json`），`recordReading` 后立即持久化；新增 `ReadingMetricsPersistenceTests`（3）覆盖「重启后会话与累计时长仍在」「无文件为空不伪造」「纯内存模式（`fileURL: nil`）不产生文件」。同时**修正测试卫生**：既有 `ReadingMetricsTests` 改用 `fileURL: nil` 纯内存模式，**不再污染真实 Application Support**（这是本轮自查发现的问题——初版测试会往用户目录写文件）。另清理了一处我自己写的无意义断言（`flatMap` 那行恒为真，等于没测）。测试：InkSightApp **396 / 0**（393 ＋ 3）。
+
 ---
 ## 3. 状态索引
 

@@ -79,15 +79,48 @@ public final class ReadingMetrics: @unchecked Sendable {
     private let lock = NSLock()
     /// 日历时区（测试可注入；默认当前）。
     private var calendar: Calendar
+    /// 落盘路径（nil ＝ 纯内存，测试/预览用）。
+    private let fileURL: URL?
 
-    public init(calendar: Calendar = .current) {
+    public static let defaultDirectory: URL = {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        return base.appendingPathComponent("com.inksight/metrics", isDirectory: true)
+    }()
+
+    public static let defaultFileName = "ReadingSessions.json"
+
+    /// - Parameters:
+    ///   - calendar: 日历（测试可注入固定时区）。
+    ///   - fileURL: 落盘路径；默认落 Application Support（重启后统计仍在）。
+    public init(calendar: Calendar = .current,
+                fileURL: URL? = ReadingMetrics.defaultDirectory
+                    .appendingPathComponent(ReadingMetrics.defaultFileName)) {
         self.calendar = calendar
+        self.fileURL = fileURL
+        if let fileURL { try? load(from: fileURL) }
     }
 
-    /// 上报一次阅读会话。
+    /// 上报一次阅读会话（**并立即落盘**，重启不丢）。
     public func recordReading(bookID: String, minutes: Double, date: Date = Date()) {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
         sessions.append(Session(bookID: bookID, minutes: minutes, date: date))
+        let snapshot = sessions
+        let url = fileURL
+        lock.unlock()
+        if let url { try? persist(snapshot, to: url) }
+    }
+
+    /// 落盘（经 `Persist` 单门）。
+    private func persist(_ snapshot: [Session], to url: URL) throws {
+        let data = try JSONEncoder().encode(snapshot)
+        try Persist.write(data, to: url, payload: .notes, excludedFromBackup: false).get()
+    }
+
+    private func load(from url: URL) throws {
+        guard let data = try? Data(contentsOf: url),
+              let decoded = try? JSONDecoder().decode([Session].self, from: data) else { return }
+        lock.lock(); defer { lock.unlock() }
+        sessions = decoded
     }
 
     /// 全部会话（供导出/分享）。
