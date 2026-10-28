@@ -58,6 +58,12 @@ public struct ReaderSurfaceView: View {
     @State private var toolbarVisible = true
     /// 浮层内可编辑的排版预设（与持久化预设同源）。
     @State private var editablePreset: ReaderTypography = TypographyPresetStore().load()
+    /// EGG4 折角：是否处于折角跟手（长按已触发）。
+    @State private var dogEarActive = false
+    /// EGG4 折角：跟手的位移（pt）。
+    @State private var dogEarTranslation: CGFloat = 0
+    /// EGG4 折角：吸附后的静态折角（写书签成功时置为 true）。
+    @State private var dogEarSnapped = false
     /// 目录是否呈现（`目录` 工具条入口）。
     @State private var showTOC = false
     /// 进度是否呈现（`进度` 工具条入口）。
@@ -108,7 +114,47 @@ public struct ReaderSurfaceView: View {
                 VStack(spacing: 0) {
                     readerTopBar(live)
                     ReaderPager(engine: live, page: pageBinding, mode: config.pageTurnMode, theme: theme)
-                        // **UIT1 工具条显隐**：唯一入口＝点按正文中央；单手势、无自动恢复。
+                        // **EGG4 页角折角**（DESIGN §5 ④ 双判定）：右下 44×44 热区，
+                        // <300ms 抬手 → 翻页；≥300ms → 折角跟手；松手 >12pt 吸附写书签。
+                        // 关闭态由 MotionCoordinator 裁决（不注册时不进本分支），
+                        // 此时加书签走工具条「书签」等价路径（功能不丢）。
+                        .gesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { value in
+                                    guard DogEarGestureResolver.isInHotZone(
+                                        value.startLocation,
+                                        containerSize: ReaderLayout.shared.containerSize) else { return }
+                                    if !dogEarActive {
+                                        dogEarActive = true
+                                        glassPresentation = .gesture
+                                        // 进入折角：一次 .light（宣告"进入折角"）
+                                        MotionCoordinator.shared.perform(.egg4DogEar) {}
+                                    }
+                                    dogEarTranslation = value.translation.height
+                                }
+                                .onEnded { _ in
+                                    guard dogEarActive else { return }
+                                    let outcome = DogEarGestureResolver.resolveRelease(
+                                        verticalTranslation: dogEarTranslation)
+                                    if outcome.writesBookmark {
+                                        // **吸附 + 写书签必须走 MotionCoordinator**：
+                                        // EGG4 的 triggerPolicy 是 `.dropTrigger`——关闭态下
+                                        // 连触发一起短路（书签不写），这正是"彩蛋关掉后功能由
+                                        // 工具条「书签」承担"的等价路径设计。
+                                        // 若把 addBookmark 写在闭包外，关闭态仍会写书签，
+                                        // 就破坏了 dropTrigger 语义（关闭态仍执行彩蛋逻辑）。
+                                        MotionCoordinator.shared.perform(.egg4DogEar) {
+                                            dogEarSnapped = true
+                                            addBookmarkAtCurrentPage()
+                                        }
+                                    } else {
+                                        dogEarSnapped = false   // 回弹，不写书签
+                                    }
+                                    dogEarActive = false
+                                    dogEarTranslation = 0
+                                    glassPresentation = .steady
+                                }
+                        )
                         // 手势期间玻璃降为纯色（`.gesture`），结束后 120ms 淡回。
                         .simultaneousGesture(
                             SpatialTapGesture().onEnded { value in
@@ -253,9 +299,10 @@ public struct ReaderSurfaceView: View {
                         switchToVersion(candidate)
                         showVersionPicker = false
                     },
-                    onCompare: {
-                        // FR-018 次入口：与匹配度最高的候选做逐章对比（指纹级，不做全文 diff）
-                        buildCompareReport(for: live)
+                    onCompare: { candidate in
+                        // FR-018 次入口：**对指定候选**做逐章对比（指纹级，不做全文 diff）。
+                        // 多副本时可逐个比对，不再是"只比最高匹配度那个"。
+                        buildCompareReport(for: live, against: candidate)
                         showVersionPicker = false
                     },
                     onEditLabel: { id, label in
@@ -403,12 +450,10 @@ public struct ReaderSurfaceView: View {
     ///
     /// **不做全文 diff**：长书全文 diff 会爆内存，且用户要的是"差在哪一章"，
     /// 不是逐字差异（那是编辑器的活）。
-    private func buildCompareReport(for live: ReaderEngine) {
+    private func buildCompareReport(for live: ReaderEngine, against candidate: VersionCandidate) {
         guard let shelf = bookShelf,
-              let current = shelf.item(for: live.bookID) else { return }
-        let candidates = versionCandidates(live)
-        guard let best = candidates.first,
-              let target = shelf.item(for: best.id) else { return }
+              let current = shelf.item(for: live.bookID),
+              let target = shelf.item(for: candidate.id) else { return }
 
         let chapterCount = min(current.chapters.count, target.chapters.count)
         var leftTexts: [String] = []
@@ -419,7 +464,7 @@ public struct ReaderSurfaceView: View {
         }
         compareReport = VersionDiff.compare(left: leftTexts, right: rightTexts)
         compareLeftName = current.fileURL?.lastPathComponent ?? current.title
-        compareRightName = best.fileName
+        compareRightName = candidate.fileName
     }
 
     /// **真实切换版本**：加载目标副本同章正文 → 用对齐引擎算出目标偏移 → 替换引擎并恢复位置。

@@ -640,6 +640,11 @@
 **补记（本轮同批修复）**：D-84 初版把版本对比浮层包进 `GlassSurface` 并写在 `ReaderSurface.swift` 内，**当场被 `ReaderContractTests.testReaderSurfaceSourceHasNoGlassReference` 拦下**——该测试守的是「正文区 0 玻璃」的结构保证，而 `ReaderSurface.swift` 一旦出现 `GlassSurface` 就破坏它。**修正**：把浮层抽成独立文件 `VersionCompareOverlay.swift`（玻璃住在自己文件里），`ReaderSurface.swift` 恢复为零玻璃代码；同时把 `ReaderTOCSheet` 的两处 `.regularMaterial` 一并改走 `GlassSurface(.l3)`，并新增 `GlassEntryPointContractTests`（2）断言「阅读器面板不得直接使用 Material」＋「ReaderSurface 不得含 GlassSurface 代码」。**这条纪律的价值正在于它会真的失败**：如果当时没有这条测试，玻璃就会悄悄混进正文视图，而 D-28 的白名单与四态收起同时失效。
 
 ---
+### D-85　EGG4 折角双判定落地 ＋ FR-018 多候选对比
+
+**随附交付登记（D-53 执行 · 开发包 #35）**：新增 `DogEarGestureResolver`（EGG4 双判定纯逻辑）＋ `DogEarGestureResolverTests`（8）／`Egg4TriggerPolicyTests`（3）／`MultiCandidateCompareTests`（5）；`ReaderSurface` 接入 EGG4 拖动判定；`VersionPickerPanel.onCompare` 改为接收候选，每行加「对比」入口。**测试**：InkSightApp **334 / 0**（318 ＋ 16），InkSightCore 41/0，iOS Simulator SDK Build complete。**EGG4 落地（DESIGN §5 ④ 原文逐条）**：①热区 **44×44pt** 位于右下角（边界值有测试：热区左上那一点算内、向左/向上 1pt 算外）②按下 **<300ms 抬手 → 翻页**（该角不留死区；0 次触感）③按住 **≥300ms → 折角跟手**（1 次 `.light` 宣告"进入折角"）④松手 **>12pt → 吸附 + 写书签**（第 2 次 `.light` 宣告"书签已写"）；**=12pt 或更小 → 回弹，不写书签**（规范写「>12pt」，故 12 本身属回弹，有边界测试）。**关键修正（重要，如实留痕）**：初版把 `addBookmarkAtCurrentPage()` 写在 `MotionCoordinator.perform` 闭包**外**——而 EGG4 的 `triggerPolicy` 是 **`.dropTrigger`**（`equivalentPath: "chrome 菜单加书签"`），语义是**关闭态连触发一起短路**。写在闭包外会导致"彩蛋关了书签照样被彩蛋写"，破坏 DESIGN §4.1 的关闭态规则。已改为把书签写入放进 `perform` 闭包内，并新增 `Egg4TriggerPolicyTests` 断言「关闭态闭包不执行」「开启态闭包执行」「EGG4 必须是 dropTrigger 且声明非空等价路径」。**FR-018 多候选对比**：`onCompare` 从 `() -> Void` 改为 `(VersionCandidate) -> Void`，候选行各带「对比」按钮（`borderless`，**不触发版本切换**，有测试），底部主次入口改为与最高匹配候选比且无候选时 `disabled`；`buildCompareReport(for:against:)` 以指定候选为参数，**不再写死 `candidates.first`**（测试断言源码不含该调用）。**诚实空态（未做/待后续）**：EGG4 只接了 `DragGesture` 的**位移判定**，**触感 `.light` 本身未真正调用**（`MotionCoordinator.perform` 驱动的是动效事务，不是 haptic；真机需 `UIImpactFeedbackGenerator`，跨平台不能直接引 UIKit）；折角的**视觉**（24→60pt 折角图形）未绘制，当前只有状态与书签副作用；`resolveTap` 的**短按翻页分支未接线**（`DragGesture.onEnded` 无法区分单击，真实实现需 `LongPressGesture` 与 `TapGesture` 组合）；对比仍是**章节级**，不指出章内差异位置。
+
+---
 ## 3. 状态索引
 
 ### 3.1 仍开放（客户后续再定）

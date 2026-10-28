@@ -20,8 +20,9 @@ struct VersionPickerPanel: View {
     let candidates: [VersionCandidate]
     /// 选择某副本（切换版本）。
     var onSelect: (VersionCandidate) -> Void = { _ in }
-    /// 打开「版本对比」（次入口）。
-    var onCompare: () -> Void = {}
+    /// 打开「版本对比」（次入口）：**针对指定候选**对比——多副本时可逐个比对，
+    /// 而不是只比匹配度最高的那个。
+    var onCompare: (VersionCandidate) -> Void = { _ in }
     /// 版本标签编辑后回调（FR-018：标签是可编辑纯文本，需持久化）。
     var onEditLabel: (String, String) -> Void = { _, _ in }
 
@@ -72,8 +73,13 @@ struct VersionPickerPanel: View {
             // 长句保留给无障碍标签（VoiceOver 读出来更准确）
             .accessibilityLabel("替换为其他版本文件")
 
-            Button("版本对比", action: onCompare)
-                .frame(maxWidth: .infinity)
+            Button("版本对比") {
+                if let best = VersionAlignmentEngine.ranked(candidates).first {
+                    onCompare(best)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .disabled(candidates.isEmpty)
         }
         .padding(20)
     }
@@ -106,6 +112,11 @@ struct VersionPickerPanel: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("编辑版本标签：\(candidate.versionLabel)")
                 Spacer()
+                // 逐候选对比（FR-018 次入口的多副本形态）：不切换版本，只看差异
+                Button("对比") { onCompare(candidate) }
+                    .font(.caption2)
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("与 \(candidate.fileName) 对比")
             }
             if editingLabelFor == candidate.id {
                 HStack {
