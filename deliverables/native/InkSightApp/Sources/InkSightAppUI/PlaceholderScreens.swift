@@ -376,6 +376,13 @@ struct MeScreen: View {
     @State private var showBackup = false
     /// 主题状态（FR-010）：皮肤 + 夜航对比档 + 切换模式。
     @State private var themeState: ThemeState = ThemeStore().load()
+    /// FR-032 ③：监护验证码（未成年人模式不可自行退出）。
+    @State private var guardian = GuardianVerification()
+    /// FR-032 ③：验证输入与反馈。
+    @State private var guardianInput = ""
+    @State private var guardianMessage = ""
+    /// FR-032 ④：家长内容确认（进入时列出书架 N 本）。
+    @State private var parentalDecision = ParentalContentDecision()
 
     /// 场景相位：`scenePhase != .active` 立即停后台重排
     /// （对齐 NFR-04「`scenePhase != .active` 立即 `cancelAllTasks()`」的纪律精神）。
@@ -447,6 +454,11 @@ struct MeScreen: View {
                     Text("夜间与主题")
                 } footer: {
                     Text("夜航两档制：标准 #8A8A8A（5.4:1）／高对比 #CFCDC7（13:1），不设第三档。高对比是夜航的色值档位，不是独立主题。")
+                }
+
+                // FR-032 ③④：未成年人模式的监护入口（**仅 .minorConfirmed 出现**）。
+                if ageState == .minorConfirmed {
+                    guardianSection
                 }
 
                 // FR-025 备份与恢复（设置与数据）：导出进度与偏好，不含正文。
@@ -678,6 +690,74 @@ struct MeScreen: View {
                 .foregroundStyle(.secondary)
         } header: {
             Text("动效运行时")
+        }
+    }
+
+    /// FR-032 ③④ 监护段：家长内容确认 ＋ 监控验证退出（**模式内不出现书源/网络能力**）。
+    @ViewBuilder
+    private var guardianSection: some View {
+        Section {
+            // ④ 家长内容确认：列出书架 N 本，全部保留 / 仅保留指定
+            LabeledContent("书架图书", value: "\(bookShelf?.items.count ?? 0) 本")
+            Toggle("全部保留", isOn: Binding(
+                get: { parentalDecision.keepAll },
+                set: { parentalDecision.keepAll = $0 }
+            ))
+            if !parentalDecision.keepAll {
+                ForEach(bookShelf?.items ?? [], id: \.bookID) { item in
+                    Toggle(item.title, isOn: Binding(
+                        get: { parentalDecision.keptBookIDs.contains(item.bookID) },
+                        set: { on in
+                            if on { parentalDecision.keptBookIDs.insert(item.bookID) }
+                            else { parentalDecision.keptBookIDs.remove(item.bookID) }
+                        }
+                    ))
+                }
+            }
+            if !parentalDecision.hiddenBookIDs.isEmpty {
+                LabeledContent("家长隐藏", value: "\(parentalDecision.hiddenBookIDs.count) 本")
+            }
+        } header: {
+            Text("家长内容确认")
+        } footer: {
+            Text("隐藏清单对孩子不可见、不可撤销；仅监护验证后可修改。")
+        }
+
+        Section {
+            // ③ 监护验证：未成年模式不可自行退出
+            if guardian.isConfigured {
+                SecureField("监护验证码", text: $guardianInput)
+                Button("验证并退出未成年人模式") {
+                    switch guardian.verify(guardianInput) {
+                    case .success:
+                        guardianMessage = "验证通过。退出后进度将按时间戳自动合并（不弹选择框）。"
+                        guardianInput = ""
+                    case .wrongCode:
+                        guardianMessage = "验证码不正确。"
+                    case .lockedOut(let remaining):
+                        guardianMessage = "尝试次数过多，请 \(remaining) 秒后重试。"
+                    case .notConfigured:
+                        guardianMessage = "尚未设置验证码。"
+                    }
+                }
+                if !guardianMessage.isEmpty {
+                    Text(guardianMessage).font(.caption).foregroundStyle(.secondary)
+                }
+            } else {
+                Button("设置监护验证码") {
+                    guardian.setCode(guardianInput.isEmpty ? "0000" : guardianInput)
+                    guardianInput = ""
+                    guardianMessage = "验证码已设置（仅存加盐哈希，不留明文）。"
+                }
+                SecureField("输入要设置的验证码", text: $guardianInput)
+                if !guardianMessage.isEmpty {
+                    Text(guardianMessage).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        } header: {
+            Text("监护验证")
+        } footer: {
+            Text("未成年人模式不可自行退出，需监护验证码。验证码只存加盐哈希，不落明文、不进日志。")
         }
     }
 
