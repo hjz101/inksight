@@ -540,6 +540,9 @@
 **补充登记**：`LocalSearchStore.SearchHit` 新增可选 `charOffset: Int?`，`ReaderNavigationRequest` 已支持该字段。当前 FTS5 中文按字索引方案能可靠返回书/章/片段，但系统 sqlite3 的 FTS5 不提供可直接映射回原文 UTF-16 偏移的 `offsets()`（该辅助函数属于 FTS3/4，FTS5 不支持）；因此当前结果明确返回 `nil`，阅读器跳到目标章节而非伪装成精准字符位置。**不把不可验证的精确偏移写成已完成能力**。后续若要闭合，需由调用方在命中章节二次读取本地文件并扫描原始查询词，或更换支持位置信息的索引方案；不得把正文常驻 FTS 表当作偏移来源。
 
 ---
+**补充登记（D-65 修订）**：`SearchHit.charOffset` 已落地为**可用的精确偏移**——命中点击时在本地原始章节二次扫描查询词（`(text as NSString).range(of:)`，UTF-16 口径），经 `ReaderNavigator` 投递，`ReaderEngine.recordProgress(at:)` 写入共享进度仓库，`ReaderSurface.prepareSession` 按 `charOffset` 二分恢复到命中所在页。**技术边界**：系统 sqlite3 的 FTS5 不提供 FTS3/4 的 `offsets()` 辅助函数，故不做 FTS 位置索引，改为「命中 → 二次读取本地文件 → 原始文本扫描」——不把正文常驻索引、不伪装不可验证的精确偏移。新增 `SearchHitOffsetTests`（4 个）：偏移指向原始章节查询词、缺失词返回 nil 而非 0、多次出现取首次稳定位置、UTF-16 口径（代理对按 NSString 语义）。**测试**：InkSightApp **163 / 0**，InkSightCore 41/0，iOS Simulator SDK Build complete。**诚实空态**：命中句跨页时恢复误差 ≤1 屏（复用 FR-011 口径）；查询词含标点时 `range(of:)` 可能受全角/半角差异影响，未做归一化；跨书重复命中只取首次。
+
+
 ## 3. 状态索引
 
 ### 3.1 仍开放（客户后续再定）
