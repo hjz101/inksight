@@ -23,14 +23,22 @@ final class ReaderContractTests: XCTestCase {
                        "正文视图源码（去注释后）不得调用 .glassEffect")
     }
 
-    /// 正文背景为不透明纯色纸面（0 玻璃 0 backdrop）：源码含 `Color(white: 0.98)` 且不含玻璃修饰。
+    /// 正文背景为**不透明纯色**纸面（0 玻璃 0 backdrop），颜色由主题决定（FR-010）。
+    ///
+    /// D-71 变更：此前断言硬编码 `Color(white: 0.98)`；FR-010 落地后纸面色改为按主题取
+    /// （`ReaderPageCanvas.color(hex: theme.backgroundHex)`）。**纪律不变**——仍必须是不透明
+    /// 纯色、不得进玻璃容器；变的是「颜色来源从常量改为主题」。
     func testReaderSurfaceUsesOpaquePaperBackground() throws {
         let url = try sourceURL("ReaderSurface.swift", inUI: true)
         let src = stripComments(try String(contentsOf: url, encoding: .utf8))
-        XCTAssertTrue(src.contains("Color(white: 0.98)"),
-                      "正文背景应为不透明纯色纸面 Color(white: 0.98)")
+        XCTAssertTrue(src.contains("theme.backgroundHex"),
+                      "正文背景应按主题取不透明纯色（FR-010）")
+        XCTAssertTrue(src.contains("ignoresSafeArea"),
+                      "纸面应铺满全屏")
         XCTAssertFalse(src.contains("GlassEffectContainer"),
                        "正文视图不得进入任何玻璃容器")
+        XCTAssertFalse(src.contains(".glassEffect"),
+                       "正文视图不得使用 glassEffect")
     }
 
     /// 0 玻璃（书架→阅读器路径）：`ReaderSurfaceView` 接入书架，但不得被任何 `GlassSurface`

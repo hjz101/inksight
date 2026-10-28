@@ -353,6 +353,8 @@ struct MeScreen: View {
     @State private var showComplaint = false
     /// 备份与恢复视图是否呈现（FR-025 设置与数据）。
     @State private var showBackup = false
+    /// 主题状态（FR-010）：皮肤 + 夜航对比档 + 切换模式。
+    @State private var themeState: ThemeState = ThemeStore().load()
 
     /// 场景相位：`scenePhase != .active` 立即停后台重排
     /// （对齐 NFR-04「`scenePhase != .active` 立即 `cancelAllTasks()`」的纪律精神）。
@@ -394,6 +396,36 @@ struct MeScreen: View {
                     }
                 } footer: {
                     Text("投诉通达邮箱为占位（发行前必须替换，发布闸门 A9/A10 不可豁免）；受理回执 48h，处理 15 工作日。")
+                }
+
+                // FR-010 夜间与主题：皮肤 + 夜航对比档（两档制）+ 切换模式
+                Section {
+                    Picker("主题", selection: Binding(
+                        get: { themeState.skin },
+                        set: { themeState.skin = $0; themeState.mode = .manual; saveTheme() }
+                    )) {
+                        Text("雪纸").tag(ThemeSkin.snowPaper)
+                        Text("夜航").tag(ThemeSkin.nightVoyage)
+                    }
+                    Picker("夜航对比", selection: Binding(
+                        get: { themeState.nightContrast },
+                        set: { themeState.nightContrast = $0; saveTheme() }
+                    )) {
+                        Text("标准（5.4:1）").tag(NightContrast.standard)
+                        Text("高对比（13:1）").tag(NightContrast.highContrast)
+                    }
+                    .disabled(themeState.skin == .snowPaper)
+                    Picker("切换方式", selection: Binding(
+                        get: { themeState.mode },
+                        set: { themeState.mode = $0; saveTheme() }
+                    )) {
+                        Text("按时段（22:00–6:00 夜航）").tag(ThemeMode.byTime)
+                        Text("手动").tag(ThemeMode.manual)
+                    }
+                } header: {
+                    Text("夜间与主题")
+                } footer: {
+                    Text("夜航两档制：标准 #8A8A8A（5.4:1）／高对比 #CFCDC7（13:1），不设第三档。高对比是夜航的色值档位，不是独立主题。")
                 }
 
                 // FR-025 备份与恢复（设置与数据）：导出进度与偏好，不含正文。
@@ -607,6 +639,11 @@ struct MeScreen: View {
         } header: {
             Text("动效运行时")
         }
+    }
+
+    /// 主题状态即时落盘（单门 JSON 原子写）。
+    private func saveTheme() {
+        try? ThemeStore().save(themeState)
     }
 
     /// 把动效开关应用到唯一动画入口（`MotionCoordinator`），并即时落盘（单门 JSON 原子写）。

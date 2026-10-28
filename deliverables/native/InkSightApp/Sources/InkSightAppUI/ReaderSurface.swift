@@ -37,6 +37,8 @@ public struct ReaderSurfaceView: View {
     @StateObject private var session: ReaderSession
 
     @State private var config: ReaderConfig = .default
+    /// 阅读主题（FR-010）：进入阅读器时按已存主题状态 + 当前小时解析生效皮肤。
+    @State private var theme: ThemeState = ThemeStore().load()
 
     public init(onExit: @escaping () -> Void) {
         self.onExit = onExit
@@ -64,14 +66,14 @@ public struct ReaderSurfaceView: View {
 
     public var body: some View {
         ZStack {
-            // 纸面：不透明纯色（0 玻璃、0 backdrop 采样）
-            Color(white: 0.98)
+            // 纸面：不透明纯色（0 玻璃、0 backdrop 采样）——按生效主题取色（FR-010）
+            ReaderPageCanvas.color(hex: theme.backgroundHex)
                 .ignoresSafeArea()
 
             if let live = session.engine {
                 VStack(spacing: 0) {
                     readerTopBar(live)
-                    ReaderPager(engine: live, page: pageBinding, mode: config.pageTurnMode)
+                    ReaderPager(engine: live, page: pageBinding, mode: config.pageTurnMode, theme: theme)
                         .onChange(of: session.currentPage) { _, _ in recordProgressIfPossible() }
                 }
             } else {
@@ -179,11 +181,13 @@ struct ReaderPager: View {
     let engine: ReaderEngine
     @Binding var page: Int
     var mode: PageTurnMode
+    /// 阅读主题（FR-010）。
+    var theme: ThemeState = ThemeState()
 
     var body: some View {
         switch mode {
         case .none:
-            ReaderPageCanvas(engine: engine, pageIndex: page)
+            ReaderPageCanvas(engine: engine, pageIndex: page, theme: theme)
         case .scroll, .flip, .curl:
             pagingScroll(.horizontal)
         case .vertical:
@@ -219,7 +223,7 @@ struct ReaderPager: View {
                 if axis == .horizontal {
                     LazyHStack(spacing: 0) {
                         ForEach(0..<engine.pageCount, id: \.self) { idx in
-                            ReaderPageCanvas(engine: engine, pageIndex: idx)
+                            ReaderPageCanvas(engine: engine, pageIndex: idx, theme: theme)
                                 .frame(width: geo.size.width, height: geo.size.height)
                                 .id(idx)
                         }
@@ -228,7 +232,7 @@ struct ReaderPager: View {
                 } else {
                     LazyVStack(spacing: 0) {
                         ForEach(0..<engine.pageCount, id: \.self) { idx in
-                            ReaderPageCanvas(engine: engine, pageIndex: idx)
+                            ReaderPageCanvas(engine: engine, pageIndex: idx, theme: theme)
                                 .frame(width: geo.size.width, height: geo.size.height)
                                 .id(idx)
                         }
@@ -257,6 +261,10 @@ struct ReaderPager: View {
 struct ReaderPageCanvas: View {
     let engine: ReaderEngine
     let pageIndex: Int
+    /// 阅读主题（FR-010）：决定纸面底色与正文墨色。
+    var theme: ThemeState = ThemeState()
+    /// 生效的皮肤（由 ReaderSurfaceView 按小时解析后传入；nil 时用 theme.skin）。
+    var effectiveSkin: ThemeSkin?
 
     var body: some View {
         Canvas { context, _ in
@@ -266,8 +274,8 @@ struct ReaderPageCanvas: View {
 
             context.withCGContext { cg in
                 cg.saveGState()
-                // 墨色（不透明纯色，0 玻璃）
-                let ink = CGColor(red: 0.10, green: 0.10, blue: 0.12, alpha: 1)
+                // 墨色按主题取（FR-010）：雪纸深色字 / 夜航两档对比
+                let ink = Self.cgColor(hex: theme.textHex)
                 cg.setFillColor(ink)
                 cg.setStrokeColor(ink)
 
@@ -283,6 +291,24 @@ struct ReaderPageCanvas: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(white: 0.98))
+        .background(Self.color(hex: theme.backgroundHex))
+    }
+
+    /// 十六进制 → SwiftUI Color。
+    static func color(hex: String) -> Color {
+        Color(cgColor: cgColor(hex: hex))
+    }
+
+    /// 十六进制 → CGColor（`#RRGGBB`）。
+    static func cgColor(hex: String) -> CGColor {
+        var v = hex.trimmingCharacters(in: .whitespaces)
+        if v.hasPrefix("#") { v.removeFirst() }
+        guard v.count == 6, let n = UInt32(v, radix: 16) else {
+            return CGColor(red: 0.1, green: 0.1, blue: 0.12, alpha: 1)
+        }
+        let r = CGFloat((n >> 16) & 0xFF) / 255
+        let g = CGFloat((n >> 8) & 0xFF) / 255
+        let b = CGFloat(n & 0xFF) / 255
+        return CGColor(red: r, green: g, blue: b, alpha: 1)
     }
 }
