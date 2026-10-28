@@ -42,14 +42,17 @@ public final class TypographyPresetStore: @unchecked Sendable {
         guard FileManager.default.fileExists(atPath: fileURL.path) else { return .default }
         guard let data = try? Data(contentsOf: fileURL) else { return .default }
         guard let decoded = try? JSONDecoder().decode(ReaderTypography.self, from: data) else { return .default }
-        return decoded
+        // **档位归一化（FR-009）**：旧设置页用滑块可写出 14…28pt 等越界值；
+        // 读入时压回合法档位，防止历史非法值继续生效（normalize 幂等，合法值不变）。
+        return TypographyTiers.normalize(decoded)
     }
 
     /// 持久化预设：经 `Persist` 落盘单门（E-04）原子写。
     ///
     /// 注意：**不设 `NSURLIsExcludedFromBackupKey`**——用户偏好应可随 iCloud／本地备份恢复。
     public func save(_ typography: ReaderTypography) throws {
-        let data = try JSONEncoder().encode(typography)
+        // 落盘前归一化：只允许合法档位进入持久化（越界值 snap）。
+        let data = try JSONEncoder().encode(TypographyTiers.normalize(typography))
         let result = Persist.write(data, to: fileURL, payload: .typographyPreference,
                                    excludedFromBackup: false)
         try result.get()

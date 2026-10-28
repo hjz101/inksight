@@ -471,43 +471,62 @@ struct MeScreen: View {
     @ViewBuilder
     private var settingsSection: some View {
         Section {
-            // 字号
-            HStack {
-                Text("字号")
-                Spacer()
-                Text("\(Int(preset.fontSize)) pt").foregroundStyle(.secondary)
-            }
-            Slider(value: $preset.fontSize, in: 14...28, step: 1)
+            // **档位制（FR-009）**：离散档位，不是滑块——PRD 明文给出的可选项只有三档。
+            // 旧实现用 Slider(14...28) 允许任意值，开放了 PRD 明令禁止的档位（含 12pt 以下）。
 
-            // 行高倍数
-            HStack {
-                Text("行高倍数")
-                Spacer()
-                Text(String(format: "%.2f", preset.lineHeightMultiplier)).foregroundStyle(.secondary)
-            }
-            Slider(value: $preset.lineHeightMultiplier, in: 1.2...2.4, step: 0.05)
-
-            // 正文左右内边距（leading / trailing 同步，保持对称）
-            HStack {
-                Text("正文左右内边距")
-                Spacer()
-                Text("\(Int(preset.insets.leading)) pt").foregroundStyle(.secondary)
-            }
-            Slider(value: Binding(
-                get: { preset.insets.leading },
-                set: { v in
-                    preset.insets.leading = v
-                    preset.insets.trailing = v
+            // 字号：19 / 20（默认）/ 21 pt
+            Picker("字号", selection: Binding(
+                get: { TypographyTiers.normalizeFontSize(preset.fontSize) },
+                set: { size in
+                    preset.fontSize = size
+                    // 缩进随字号联动（2×字号）：缩进开启时同步更新
+                    if preset.indent > 0 { preset.indent = size * 2 }
                 }
-            ), in: 8...48, step: 1)
+            )) {
+                ForEach(TypographyTiers.fontSizes, id: \.self) { size in
+                    Text("\(Int(size)) pt").tag(size)
+                }
+            }
+            .pickerStyle(.segmented)
 
-            // 段前 / 段后间距
-            Stepper(value: $preset.paragraphSpacingBefore, in: 0...24, step: 1) {
-                Text("段前间距：\(Int(preset.paragraphSpacingBefore)) pt")
+            // 行高：1.70 / 1.75（默认）/ 1.85（行盒 min==max==字号×倍数，D-31）
+            Picker("行高", selection: Binding(
+                get: { TypographyTiers.normalizeLineHeight(preset.lineHeightMultiplier) },
+                set: { preset.lineHeightMultiplier = $0 }
+            )) {
+                ForEach(TypographyTiers.lineHeights, id: \.self) { lh in
+                    Text(String(format: "%.2f", lh)).tag(lh)
+                }
             }
-            Stepper(value: $preset.paragraphSpacingAfter, in: 0...24, step: 1) {
-                Text("段后间距：\(Int(preset.paragraphSpacingAfter)) pt")
+            .pickerStyle(.segmented)
+
+            // 边距：16 / 20（默认）/ 24 pt（左右对称）
+            Picker("边距", selection: Binding(
+                get: { TypographyTiers.normalizeMargin(preset.insets.leading) },
+                set: { m in
+                    preset.insets.leading = m
+                    preset.insets.trailing = m
+                }
+            )) {
+                ForEach(TypographyTiers.margins, id: \.self) { m in
+                    Text("\(Int(m)) pt").tag(m)
+                }
             }
+            .pickerStyle(.segmented)
+
+            // 首行缩进：无 / 2 字（= 2×字号）
+            Picker("首行缩进", selection: Binding(
+                get: { preset.indent > 0 },
+                set: { preset.indent = TypographyTiers.indent(enabled: $0, fontSize: preset.fontSize) }
+            )) {
+                Text("无").tag(false)
+                Text("2 字").tag(true)
+            }
+            .pickerStyle(.segmented)
+
+            // 段前/段后：**固定值，不是用户可调项**（PRD 正文样式基线：段前 12、段后 0）
+            LabeledContent("段前间距", value: "\(Int(TypographyTiers.paragraphSpacingBefore)) pt（固定）")
+            LabeledContent("段后间距", value: "\(Int(TypographyTiers.paragraphSpacingAfter)) pt（固定）")
 
             // 重排入口在下方「阅读重排」分区（开发包 #8：作用于当前真实书）——
             // **替换** #6 的「应用并重分页（演示）」，不保留两个语义重复的按钮。

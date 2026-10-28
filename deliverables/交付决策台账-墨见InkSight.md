@@ -573,6 +573,11 @@
 **随附交付登记（D-53 执行 · 开发包 #21）**：新增 `ReadingTheme`（`ThemeSkin` / `NightContrast` / `ThemeState` / `ThemeMode` / `ThemeStore`）＋ `ReadingThemeTests`（9 个）；`ReaderSurface` 正文墨色与纸面底色改为按主题取；`MeScreen` 新增「夜间与主题」设置段。**测试**：InkSightApp **186 / 0**（177 ＋ 9），InkSightCore 41/0，iOS Simulator SDK Build complete。**落地**：①**主题皮肤两选**——雪纸（`#FCFCFB` 近白纸面 ＋ `#1A1A1C` 深色字）/ 夜航（`#121212` 深底）②**夜航两档制**（DESIGN §1.1 原文）——标准 `#8A8A8A`（5.4:1）/ 高对比 `#CFCDC7`（≈13:1），**不设第三档**；测试断言两档数恰为 2 且对比度均 ≥4.5:1 ③**切换三源**（FR-010 原文）——按时段（22:00–6:00 自动夜航）/ 按环境光 / 手动；环境光在本机无传感器，**诚实退化为按时段**（不伪装有传感器）④夜间时段边界含 22 不含 6（测试锁边界）⑤主题持久化经 `Persist` 门面（用户偏好可备份）。**契约测试更新（重要）**：`ReaderContractTests.testReaderSurfaceUsesOpaquePaperBackground` 原断言硬编码 `Color(white: 0.98)`，本轮改为断言「按主题取不透明纯色」（`theme.backgroundHex`）——**纪律不变**（正文仍须 0 玻璃、不透明纯色），变的是颜色来源从常量改为主题；该改动如实登记以免被误读为放宽 0 玻璃约束。**待真机（不混装）**：夜航两档的真机观感与 5.4:1/13:1 实测对比度；环境光传感器接入（需真机 `UIScreen.brightness` / 环境光 API）；主题切换的 T3 色带漫延动效（已登记实现目录，触发点待接）。**诚实空态（本包未做）**：主题商店（DESIGN §3 四套主题皮肤：图标/强调色/玻璃 tint/转场配色四项联动）未做——本轮只落地雪纸/夜航两套的**正文配色**，完整主题皮肤体系待后续；阅读器内无快速切换主题入口（只在「我」页设置里）。
 
 ---
+### D-72　FR-009 排版档位制落地（修掉设置页开放非法档位的偏差）
+
+**问题（本轮发现并修复的实质偏差）**：设置页此前用 `Slider(fontSize: 14...28)` / `Slider(lineHeight: 1.2...2.4)` / `Slider(margin: 8...48)` ＋ 段前/段后 Stepper(0...24)，**允许任意连续值**——包括 PRD 明令不开放的 12pt 以下字号、以及被否决的中间档。「12pt 不是多一档字号、是多一整套组合」（校验组合从 3×N 变 4×N）。这是实现与 PRD 的实质偏差，非配置问题。**随附交付登记（D-53 执行 · 开发包 #22）**：新增 `TypographyTiers`（档位定义 ＋ 归一化）＋ `TypographyTiersTests`（7 个）；设置页滑块全部改为**档位 Picker**；`TypographyPresetStore` 落盘/读取均归一化。**测试**：InkSightApp **194 / 0**（186 ＋ 7 档位 ＋ 1 归一化往返），InkSightCore 41/0。**落地**：①字号 **19/20/21** 三档 segmented Picker（`12pt 不开放` 有测试断言）②行高 **1.70/1.75/1.85** ③边距 **16/20/24**（首次启动按屏宽定默认：≤375→16、>375→20）④首行缩进 无/2 字（=2×字号，随字号联动）⑤段前 12／段后 0 改为**只读展示**（PRD 正文样式基线，非用户可调项）⑥`TypographyTiers.normalize` 把任意越界值 snap 到最近合法档（幂等），并在 `TypographyPresetStore` 的 `save`/`load` 双端调用——**历史非法预设不会继续生效**。**测试更新（留痕）**：`TypographyPresetStoreTests.testSaveThenLoadRoundTrips` 原用非法档位（1.6/10/6/32）做往返，归一化后会 snap 导致不等；改为合法档位验证真往返，并**新增** `testOutOfRangePresetIsNormalizedOnSave` 覆盖越界归一化。**诚实空态（未做/待后续）**：`fontID` 仍无 UI 选择入口（白名单 2 款，PRD FR-031 要求按名称引用；切换入口待后续）；环境光模式仍退化为按时段（无传感器）。
+
+---
 ## 3. 状态索引
 
 ### 3.1 仍开放（客户后续再定）

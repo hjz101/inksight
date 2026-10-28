@@ -27,19 +27,42 @@ final class TypographyPresetStoreTests: XCTestCase {
     /// round-trip：save 后 load 得到等价预设（8 字段无损）。
     func testSaveThenLoadRoundTrips() throws {
         let store = TypographyPresetStore(fileURL: presetFile())
+        // D-72：改用**合法档位**（FR-009 档位制后，非法值会在落盘/读取时被归一化，
+        // 旧用例的 1.6/10/6/32 会被 snap，故改为合法值验证真正的往返语义）。
         let preset = ReaderTypography(
             fontID: "PingFangSC-Regular",
             fontSize: 20,
-            lineHeightMultiplier: 1.6,
-            paragraphSpacingBefore: 10,
-            paragraphSpacingAfter: 6,
+            lineHeightMultiplier: 1.75,
+            paragraphSpacingBefore: 12,
+            paragraphSpacingAfter: 0,
             insets: ReaderInsets(top: 20, leading: 16, bottom: 20, trailing: 16),
-            indent: 32,
+            indent: 40,
             imagePlaceholderAspect: 1.4
         )
         try store.save(preset)
         let loaded = store.load()
         XCTAssertEqual(loaded, preset)
+    }
+
+    /// **越界预设在落盘/读取时被归一化**（FR-009）：旧滑块写出的非法值不得继续生效。
+    func testOutOfRangePresetIsNormalizedOnSave() throws {
+        let store = TypographyPresetStore(fileURL: presetFile())
+        let illegal = ReaderTypography(
+            fontID: "PingFangSC-Regular",
+            fontSize: 14,                 // 非法 → 19
+            lineHeightMultiplier: 1.2,    // 非法 → 1.70
+            paragraphSpacingBefore: 8,    // → 固定 12
+            paragraphSpacingAfter: 8,     // → 固定 0
+            insets: ReaderInsets(top: 20, leading: 8, bottom: 20, trailing: 8),  // 8 → 16
+            indent: 28,                   // 非法 → 0
+            imagePlaceholderAspect: 1.4
+        )
+        try store.save(illegal)
+        let loaded = store.load()
+        XCTAssertEqual(loaded.fontSize, 19, "越界字号必须被压回合法档")
+        XCTAssertEqual(loaded.lineHeightMultiplier, 1.70)
+        XCTAssertEqual(loaded.paragraphSpacingBefore, 12)
+        XCTAssertEqual(loaded.insets.leading, 16)
     }
 
     /// 无文件时返回 `.default`（诚实回退，不抛错、不伪造）。
