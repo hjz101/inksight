@@ -22,6 +22,8 @@ struct VersionPickerPanel: View {
     var onSelect: (VersionCandidate) -> Void = { _ in }
     /// 打开「版本对比」（次入口）。
     var onCompare: () -> Void = {}
+    /// 版本标签编辑后回调（FR-018：标签是可编辑纯文本，需持久化）。
+    var onEditLabel: (String, String) -> Void = { _, _ in }
 
     /// 版本标签编辑态（用户可编辑纯文本）。
     @State private var editingLabelFor: String?
@@ -110,8 +112,13 @@ struct VersionPickerPanel: View {
                     TextField(VersionCandidate.defaultVersionLabel, text: $draftLabel)
                         .textFieldStyle(.roundedBorder)
                         .font(.caption)
-                    Button("保存") { editingLabelFor = nil }
-                        .font(.caption)
+                    Button("保存") {
+                        if let id = editingLabelFor {
+                            onEditLabel(id, draftLabel)
+                        }
+                        editingLabelFor = nil
+                    }
+                    .font(.caption)
                 }
             }
         }

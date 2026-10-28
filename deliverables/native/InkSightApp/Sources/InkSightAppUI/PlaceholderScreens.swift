@@ -202,7 +202,7 @@ struct ShelfScreen: View {
 
             // 阅读器内联呈现（0 玻璃；跨平台，不依赖 .sheet/.fullScreenCover 语义）
             if let engine = activeEngine {
-                ReaderSurfaceView(engine: engine, onExit: { activeEngine = nil })
+                ReaderSurfaceView(engine: engine, onExit: { activeEngine = nil }, bookShelf: bookShelf)
                     .transition(.identity)
             }
         }

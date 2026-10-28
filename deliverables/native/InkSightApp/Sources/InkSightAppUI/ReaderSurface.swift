@@ -28,6 +28,9 @@ public struct ReaderSurfaceView: View {
     /// ——换排版得到的新引擎**不会被外部旧引擎覆盖**（见 `ReaderSession.adopt` 的同源判定）。
     let engine: ReaderEngine?
 
+    /// 书架（FR-018 多副本发现用）；nil ＝ 未注入 → 面板只展示空候选（诚实空态）。
+    let bookShelf: BookShelfStore?
+
     /// 运行期会话（开发包 #8）：持有当前生效引擎与当前页，承载换排版与落点重定位。
     ///
     /// **`@State` → `@StateObject` 修复（本次，台账待编号）**：`ReaderSession` 是
@@ -45,16 +48,21 @@ public struct ReaderSurfaceView: View {
     @State private var lastBookmark: Bookmark?
     /// FR-018：是否呈现「换一个版本」面板。
     @State private var showVersionPicker = false
+    /// FR-018：最近一次版本切换的对齐结果（诚实展示 exact/approximate/unavailable）。
+    @State private var lastAlignment: VersionAlignment?
 
-    public init(onExit: @escaping () -> Void) {
+    public init(onExit: @escaping () -> Void, bookShelf: BookShelfStore? = nil) {
         self.onExit = onExit
         self.engine = nil
+        self.bookShelf = bookShelf
         _session = StateObject(wrappedValue: ReaderSession(engine: nil, coordinator: .shared))
     }
 
-    public init(engine: ReaderEngine, onExit: @escaping () -> Void) {
+    public init(engine: ReaderEngine, onExit: @escaping () -> Void,
+                bookShelf: BookShelfStore? = nil) {
         self.engine = engine
         self.onExit = onExit
+        self.bookShelf = bookShelf
         // 用 App 级单例协调器（与设置页共用同一套锚点缓存——见 `PaginationCoordinator.shared`）
         _session = StateObject(wrappedValue: ReaderSession(engine: engine, coordinator: .shared))
     }
@@ -120,14 +128,16 @@ public struct ReaderSurfaceView: View {
         .sheet(isPresented: $showVersionPicker) {
             if let live = session.engine {
                 VersionPickerPanel(
-                    current: VersionCandidate(
-                        id: live.bookID,
-                        fileName: "当前章节",
-                        fileSizeBytes: (live.chapterText as NSString).length * 3,
-                        format: "TXT",
-                        matchScore: 1.0
-                    ),
-                    candidates: []
+                    current: currentCandidate(live),
+                    candidates: versionCandidates(live),
+                    onSelect: { candidate in
+                        switchToVersion(candidate)
+                        showVersionPicker = false
+                    },
+                    onEditLabel: { id, label in
+                        // FR-018：版本标签持久化（用户可编辑纯文本，空串回落默认值）
+                        try? VersionLabelStore().setLabel(label, for: id)
+                    }
                 )
                 .presentationDetents([.medium, .large])
             }
@@ -179,6 +189,87 @@ public struct ReaderSurfaceView: View {
         guard let live = session.engine else { return }
         guard let page = live.page(at: session.currentPage) else { return }   // 索引越界 → 不写，绝不写 0
         live.recordProgress(at: page.anchor.charOffset)
+    }
+
+    // MARK: - 多副本对齐（FR-018）
+
+    /// 当前副本的面板候选（pin 行）。
+    private func currentCandidate(_ live: ReaderEngine) -> VersionCandidate {
+        let item = bookShelf?.item(for: live.bookID)
+        let labelStore = VersionLabelStore()
+        return VersionCandidate(
+            id: live.bookID,
+            fileName: item?.fileURL?.lastPathComponent ?? (item?.title ?? "当前章节"),
+            versionLabel: labelStore.label(for: live.bookID) ?? VersionCandidate.defaultVersionLabel,
+            fileSizeBytes: item?.fileURL
+                .flatMap { try? $0.resourceValues(forKeys: [.fileSizeKey]).fileSize } ?? 0,
+            format: (item?.fileURL?.pathExtension ?? "txt").uppercased(),
+            matchScore: 1.0
+        )
+    }
+
+    /// 其它本地副本（按匹配度降序）。无书架 → 空（诚实空态）。
+    private func versionCandidates(_ live: ReaderEngine) -> [VersionCandidate] {
+        guard let shelf = bookShelf,
+              let current = shelf.item(for: live.bookID) else { return [] }
+        return VersionDiscovery.candidates(
+            current: current,
+            shelf: shelf.items,
+            headTail: { item in
+                guard let head = shelf.chapterText(for: item, chapterIndex: 0) else { return nil }
+                let last = max(0, item.chapters.count - 1)
+                guard let tail = shelf.chapterText(for: item, chapterIndex: last) else { return nil }
+                let win = VersionAlignmentEngine.fingerprintWindow
+                let headPrefix = String((head as NSString).substring(to: min(win, (head as NSString).length)))
+                let tailText = (tail as NSString)
+                let tailSuffix = String(tailText.substring(from: max(0, tailText.length - win)))
+                return (head: headPrefix, tail: tailSuffix)
+            }
+        )
+    }
+
+    /// **真实切换版本**：加载目标副本同章正文 → 用对齐引擎算出目标偏移 → 替换引擎并恢复位置。
+    ///
+    /// 定位铁律：切换后落点仍以 `charOffset` 表达，**不引入 pageIndex**。
+    private func switchToVersion(_ candidate: VersionCandidate) {
+        guard let shelf = bookShelf,
+              let target = shelf.item(for: candidate.id),
+              let live = session.engine else { return }
+
+        let chapterIndex = min(live.chapterID, max(0, target.chapters.count - 1))
+        guard let targetText = shelf.chapterText(for: target, chapterIndex: chapterIndex),
+              !targetText.isEmpty else { return }
+
+        // 对齐：源偏移 + 源章节首尾 → 目标章节，得 exact / approximate
+        let ns = live.chapterText as NSString
+        let win = VersionAlignmentEngine.fingerprintWindow
+        let sourceHead = String(ns.substring(to: min(win, ns.length)))
+        let sourceTail = String(ns.substring(from: max(0, ns.length - win)))
+        let currentOffset = live.page(at: session.currentPage)?.anchor.charOffset ?? 0
+
+        let alignment = VersionAlignmentEngine.align(
+            sourceOffset: currentOffset,
+            sourceChapterLength: max(1, ns.length),
+            sourceHead: sourceHead, sourceTail: sourceTail,
+            targetChapterText: targetText, targetChapterTitle: candidate.fileName
+        )
+
+        let newOffset: Int
+        switch alignment {
+        case .exact(let o), .approximate(let o, _): newOffset = o
+        case .unavailable: newOffset = 0   // 无法对齐 → 从章首开始（诚实：不假装对齐）
+        }
+
+        // 建新引擎（沿用当前排版），写入对齐后的进度，再采纳进会话
+        let typography = live.typography
+        let newEngine = ReaderEngine(bookID: target.bookID, chapterID: chapterIndex,
+                                     chapterText: targetText, typography: typography,
+                                     containerSize: ReaderLayout.shared.containerSize,
+                                     progressStore: live.progressStore)
+        newEngine.recordProgress(at: newOffset)
+        session.adopt(newEngine)
+        session.restoreLanding()
+        lastAlignment = alignment
     }
 
     // MARK: - 书签（FR-011）
