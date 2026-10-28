@@ -39,6 +39,10 @@ public struct ReaderSurfaceView: View {
     @State private var config: ReaderConfig = .default
     /// 阅读主题（FR-010）：进入阅读器时按已存主题状态 + 当前小时解析生效皮肤。
     @State private var theme: ThemeState = ThemeStore().load()
+    /// FR-014 四态收起：翻页/滚动中 → `.scrolling`（玻璃降为纯色+描边），静止 → `.steady`。
+    @State private var glassPresentation: GlassPresentationState = .steady
+    /// FR-011 书签：最近一次书签锚点（用于展示/测试断言）。
+    @State private var lastBookmark: Bookmark?
 
     public init(onExit: @escaping () -> Void) {
         self.onExit = onExit
@@ -74,7 +78,28 @@ public struct ReaderSurfaceView: View {
                 VStack(spacing: 0) {
                     readerTopBar(live)
                     ReaderPager(engine: live, page: pageBinding, mode: config.pageTurnMode, theme: theme)
-                        .onChange(of: session.currentPage) { _, _ in recordProgressIfPossible() }
+                        .onChange(of: session.currentPage) { _, _ in
+                            recordProgressIfPossible()
+                            // **FR-014 四态收起**：翻页/滚动中把工具条降为纯色+描边，
+                            // 结束后 120ms（`GlassPresentationState.restoreDuration`）淡回完整玻璃。
+                            // 只切 presentation（不插值材质参数），符合 DESIGN §2.5 通用规则。
+                            glassPresentation = .scrolling
+                            Task { @MainActor in
+                                try? await Task.sleep(for: .seconds(GlassPresentationState.restoreDuration))
+                                glassPresentation = .steady
+                            }
+                        }
+                }
+                // **FR-014 阅读底部工具条**（玻璃白名单成员）：叠加在正文下方。
+                // 翻页/滚动中 → `.scrolling` 降级纯色；静止 → `.steady` 完整玻璃。
+                VStack {
+                    Spacer()
+                    ReaderToolbar(
+                        presentation: glassPresentation,
+                        onBookmark: addBookmarkAtCurrentPage,
+                        onSwapVersion: {},
+                        onSettings: {}
+                    )
                 }
             } else {
                 honestEmptyState
@@ -136,6 +161,31 @@ public struct ReaderSurfaceView: View {
         guard let live = session.engine else { return }
         guard let page = live.page(at: session.currentPage) else { return }   // 索引越界 → 不写，绝不写 0
         live.recordProgress(at: page.anchor.charOffset)
+    }
+
+    // MARK: - 书签（FR-011）
+
+    /// 在当前页页首加书签（**只存 `charOffset + fingerprint`**，无 pageIndex）。
+    ///
+    /// FR-011 与 EGG4 的联动：折角手势在关闭态不注册，**加书签走本工具条入口**（等价路径）。
+    private func addBookmarkAtCurrentPage() {
+        guard let live = session.engine,
+              let page = live.page(at: session.currentPage) else { return }
+        let anchor = page.anchor
+        // 取页首若干字作预览（展示快照；定位仍以 offset/fingerprint 为准）
+        let ns = live.chapterText as NSString
+        let previewLen = min(30, max(0, ns.length - anchor.charOffset))
+        let preview = previewLen > 0
+            ? ns.substring(with: NSRange(location: anchor.charOffset, length: previewLen))
+            : ""
+        let bookmark = Bookmark(bookID: live.bookID, chapterID: live.chapterID,
+                                charOffset: anchor.charOffset,
+                                fingerprint: anchor.fingerprint,
+                                preview: preview)
+        let store = BookmarksStore()
+        store.add(bookmark)
+        try? store.persist()
+        lastBookmark = bookmark
     }
 
     // MARK: - 顶栏（0 玻璃）
