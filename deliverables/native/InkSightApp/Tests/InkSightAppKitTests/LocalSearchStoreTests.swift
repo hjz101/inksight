@@ -1,5 +1,6 @@
 import XCTest
 @testable import InkSightAppKit
+import InkSightCore
 
 /// FR-024a 本地全文检索契约测试。
 final class LocalSearchStoreTests: XCTestCase {
@@ -87,5 +88,38 @@ final class LocalSearchStoreTests: XCTestCase {
         // 两个词都出现的只有 b1
         let hits = store.search("定位铁律 合规")
         XCTAssertEqual(hits.map(\.bookID), ["b1"], "多词 AND 匹配应只命中 b1")
+    }
+
+    // MARK: - 整书索引闭环（FR-024a：导入 → 索引 → 可检索）
+
+    /// 从导入的 `Data` + 章节锚点整书索引后，可跨章检索。
+    func testIndexBookFromImportedData() throws {
+        // 造两章内容
+        let ch1 = "第一章 开头\n这是第一章的正文内容，包含关键词定位铁律。"
+        let ch2 = "第二章 继续\n这是第二章的正文内容，也提到定位铁律与字符偏移。"
+        let full = ch1 + "\n" + ch2
+        let data = Data(full.utf8)
+        let scan = ChapterScanner.scan(data)
+
+        let indexed = store.indexBook(bookID: "book-1", bookTitle: "两章书",
+                                      fileData: data, chapters: scan.chapters)
+        XCTAssertGreaterThan(indexed, 0, "应至少索引 1 章")
+
+        let hits = store.search("定位铁律")
+        XCTAssertFalse(hits.isEmpty, "整书索引后应能检索到关键词")
+        XCTAssertTrue(hits.allSatisfy { $0.bookID == "book-1" })
+    }
+
+    /// 整书索引逐章切片：章节数与扫描锚点一致，且不一次性全载（构造保证，此处验证索引行数）。
+    func testIndexBookIndexesAllChapters() throws {
+        let chapterBody = "这是一个用于验证整书索引的章节正文，包含足够长度以形成独立章节。"
+        let full = (0..<5).map { "第\($0)章 标题\n\(chapterBody)" }.joined(separator: "\n")
+        let data = Data(full.utf8)
+        let scan = ChapterScanner.scan(data)
+
+        let indexed = store.indexBook(bookID: "book-5", bookTitle: "五章书",
+                                      fileData: data, chapters: scan.chapters)
+        XCTAssertEqual(indexed, scan.chapters.count, "每章都应被索引")
+        XCTAssertEqual(store.indexedRowCount, scan.chapters.count, "索引行数应等于章节数")
     }
 }

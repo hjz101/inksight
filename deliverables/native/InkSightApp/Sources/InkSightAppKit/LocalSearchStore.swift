@@ -107,6 +107,32 @@ public final class LocalSearchStore: @unchecked Sendable {
         return .success(())
     }
 
+    /// **整书索引（FR-024a 完整闭环）**：从导入时的 `Data` ＋ 章节锚点逐章切片建索引。
+    ///
+    /// 与 `BookShelfStore` 的分工：
+    /// - 导入（`BookShelfStore.importLocalBook`）求**快**——只扫描分章、取锚点，不解析正文；
+    /// - 索引（本方法）求**可检索**——逐章切片喂 FTS，处理完一章即释放（不一次性全载）。
+    ///
+    /// 判据（NFR-08）：逐章切片、单章进索引后即释放；**不把全书正文同时驻留内存**。
+    /// 返回成功索引的章节数。
+    @discardableResult
+    public func indexBook(bookID: String, bookTitle: String,
+                          fileData: Data, chapters: [ChapterAnchor]) -> Int {
+        var indexed = 0
+        for (chapterIndex, anchor) in chapters.enumerated() {
+            // 逐章切片（复用 BookShelfStore 的切片口径：字节范围 → UTF-8 文本）
+            let end = min(anchor.byteOffset + anchor.byteLength, fileData.count)
+            guard anchor.byteOffset <= end, end > anchor.byteOffset else { continue }
+            let body = String(decoding: fileData[anchor.byteOffset..<end], as: UTF8.self)
+            guard !body.isEmpty else { continue }
+            if case .success = indexChapter(bookID: bookID, bookTitle: bookTitle,
+                                            chapterIndex: chapterIndex, body: body) {
+                indexed += 1
+            }
+        }
+        return indexed
+    }
+
     /// 删除一本书的全部索引（用户移除本地文件时调用）。
     public func removeBook(bookID: String) -> Result<Void, SQLiteCacheError> {
         lock.lock(); defer { lock.unlock() }
