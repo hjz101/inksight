@@ -133,6 +133,75 @@ public enum MotionRegistry {
     }
 }
 
+// MARK: - 动效分组与「有独立开关」集合（开发包 #7 · FR-030 ②）
+
+/// 设置页的动效分组（FR-030 原文②「按『转场 4／彩蛋 5／手势 2』三组」）。
+/// 中文名在此**单一来源**——UI 不另写一份名字（同 `MotionSpec.chineseName` 的纪律）。
+public enum MotionGroup: String, CaseIterable, Sendable {
+    case transition   // 转场
+    case easterEgg    // 彩蛋
+    case gesture      // 手势
+
+    public var chineseName: String {
+        switch self {
+        case .transition: return "转场"
+        case .easterEgg:  return "彩蛋"
+        case .gesture:    return "手势"
+        }
+    }
+}
+
+public extension MotionRegistry {
+
+    /// **有独立开关的动效集合：恰好 11 个**（FR-030 原文②「可关 11 个」）。
+    ///
+    /// 严格集合：`T1／T2／T3／T6／EGG1／EGG2／EGG3／EGG4／EGG5／UIT1／UIT2`。
+    /// **T4／T5 不在其中**——FR-030 明文「T4 无单独开关（直切回位＋位置标签）、
+    /// T5 无单独开关（降级 0ms 静态态）」，故 UI 上不得出现这两行开关。
+    ///
+    /// 用**穷举 switch** 派生：新增一个 `MotionID` case 而未在此登记 → **编译失败**
+    /// （同 FR-030「未登记构建失败」的纪律，避免集合与枚举静默脱钩）。
+    ///
+    /// 注意与 `MotionSpec.closable` 区分：`closable` ＝ A 档「全部可关」（13 个全为 true，
+    /// 指「关掉时走不播动画路径」这一档位）；本集合 ＝ 「**是否给用户一个独立开关行**」。
+    /// 两者不是一回事，故单列。
+    static var perIDSwitchableIDs: [MotionID] {
+        var ids: [MotionID] = []
+        for id in MotionID.allCases {
+            switch id {   // 穷举：新增 case 不加分支即编译失败
+            case .t1BookOpen, .t2VersionSwap, .t3ThemeWipe, .t6InkGrow,
+                 .egg1CoverLiquid, .egg2PinchSpine, .egg3PaperPull, .egg4DogEar, .egg5ShakePanel,
+                 .uit1ChromeToggle, .uit2EdgeBack:
+                ids.append(id)
+            case .t4RestoreSettle, .t5SwitchRipple:
+                continue   // FR-030 明文：T4／T5 无单独开关
+            }
+        }
+        return ids
+    }
+
+    /// 某 ID 的分组归属（穷举 switch → 新增 case 编译失败）。
+    ///
+    /// T4／T5 归入「转场」组（语义归属），但**不进入 `ids(inGroup:)` 的结果**——
+    /// 它们无独立开关，UI 上不生成这两行。
+    static func group(for id: MotionID) -> MotionGroup {
+        switch id {
+        case .t1BookOpen, .t2VersionSwap, .t3ThemeWipe, .t4RestoreSettle, .t5SwitchRipple, .t6InkGrow:
+            return .transition
+        case .egg1CoverLiquid, .egg2PinchSpine, .egg3PaperPull, .egg4DogEar, .egg5ShakePanel:
+            return .easterEgg
+        case .uit1ChromeToggle, .uit2EdgeBack:
+            return .gesture
+        }
+    }
+
+    /// 某组内**有独立开关**的 ID（已剔除 T4／T5）。
+    /// 预期规模：转场 4／彩蛋 5／手势 2。
+    static func ids(inGroup group: MotionGroup) -> [MotionID] {
+        perIDSwitchableIDs.filter { self.group(for: $0) == group }
+    }
+}
+
 // MARK: - MotionCoordinator（唯一动画入口）
 
 /// **唯一动画入口**：任何动画调用必须持 MotionID 经由本协调器。
@@ -140,6 +209,9 @@ public enum MotionRegistry {
 /// 全局总关 ＝ **不播动画路径**（`withTransaction(Transaction(animation: nil))`），
 /// **不是时长设 0**——`matchedGeometryEffect` 在时长 0 下仍会画一帧旧 frame。
 /// 验收：首帧与末帧逐帧 diff 为 0 且无中间帧（截帧验证）。
+///
+/// **开发包 #7 扩展**：除全局总关外，支持 **per-ID 独立开关**（FR-030 原文②「可关 11 个」）。
+/// 判定式为 `isEnabled(_:)` ＝ **全局总关 AND 未被单独关闭**——总关优先级最高，单 ID 开关不能绕过它。
 @MainActor
 public final class MotionCoordinator {
 
@@ -147,6 +219,15 @@ public final class MotionCoordinator {
     public static let shared = MotionCoordinator()
 
     public private(set) var isMotionEnabled: Bool
+
+    /// **每 ID 独立开关（开发包 #7）**：只存「被单独关闭」的 ID。
+    ///
+    /// 为什么用 `Set<MotionID>` 而不是字典：① 判存 O(1)；② 与 `MotionSettings.perID`
+    /// 的「true＝开」语义**正好互补**（存的是「关」的集合），转换只在
+    /// `apply(_:)` 与 `currentSettings()` 两处发生，不散落。
+    ///
+    /// 为什么必须存在本类体内而不能用扩展：Swift 不允许在扩展里加存储属性。
+    private var individuallyDisabled: Set<MotionID> = []
 
     public init(isMotionEnabled: Bool = true) {
         self.isMotionEnabled = isMotionEnabled
@@ -156,19 +237,63 @@ public final class MotionCoordinator {
         isMotionEnabled = enabled
     }
 
-    /// 总关时返回 nil（= 不播动画路径）；开启时返回该 ID 的标准动画。
-    /// （真机曲线/时长由各动效实现自带，Registry 只裁决"播不播"。）
-    public func animation(for id: MotionID) -> Animation? {
-        isMotionEnabled ? .snappy(duration: MotionRegistry.spec(for: id).closable ? 0.3 : 0) : nil
+    // MARK: - per-ID 独立开关（FR-030 原文②）
+
+    /// 该 ID 是否允许播动画 ＝ **全局总关 AND 未被单独关闭**。
+    ///
+    /// **全局总关优先级最高**：任何单 ID 开关都不能绕过总关——总关时即使某 ID 单独开着也不播。
+    public func isEnabled(_ id: MotionID) -> Bool {
+        isMotionEnabled && !individuallyDisabled.contains(id)
     }
 
-    /// 唯一播放入口。总关时按 `triggerPolicy` 分流：
-    /// - keepTrigger：仍执行状态变更，但**无动画**（`withTransaction(animation: nil)`）；
+    /// 该 ID 是否被**单独**关闭（**不含**全局总关的影响）——UI 开关行状态取自此处。
+    public func isIndividuallyDisabled(_ id: MotionID) -> Bool {
+        individuallyDisabled.contains(id)
+    }
+
+    /// 设置某 ID 的独立开关（**只影响该 ID**，其余 ID 一律不受影响）。
+    public func setEnabled(_ enabled: Bool, for id: MotionID) {
+        if enabled {
+            individuallyDisabled.remove(id)
+        } else {
+            individuallyDisabled.insert(id)
+        }
+    }
+
+    /// 批量应用设置（来自持久化或 UI）——**不依赖磁盘**即可驱动任意开关组合。
+    ///
+    /// 语义：先写全局总关，再按 `perID` 写各 ID（缺键视为开）。
+    public func apply(_ settings: MotionSettings) {
+        isMotionEnabled = settings.globalEnabled
+        individuallyDisabled = Set(
+            MotionRegistry.perIDSwitchableIDs.filter { settings.perID[$0.rawValue] == false }
+        )
+    }
+
+    /// 当前设置快照（供持久化）：形状恒为「全局 + 11 个可关 ID」。
+    public func currentSettings() -> MotionSettings {
+        var perID: [String: Bool] = [:]
+        for id in MotionRegistry.perIDSwitchableIDs {
+            perID[id.rawValue] = !individuallyDisabled.contains(id)
+        }
+        return MotionSettings(globalEnabled: isMotionEnabled, perID: perID)
+    }
+
+    /// 该播时返回该 ID 的标准动画；**总关或该 ID 被单独关闭 → nil**（＝不播动画路径）。
+    /// （真机曲线/时长由各动效实现自带，Registry 只裁决"播不播"。）
+    public func animation(for id: MotionID) -> Animation? {
+        isEnabled(id) ? .snappy(duration: MotionRegistry.spec(for: id).closable ? 0.3 : 0) : nil
+    }
+
+    /// 唯一播放入口。**总关或该 ID 被单独关闭**时按 `triggerPolicy` 分流：
+    /// - keepTrigger：仍执行状态变更，但**无动画**（`withTransaction(animation: nil)`）——
+    ///   「关动效只能减掉动画，不能减掉能力」；
     /// - dropTrigger：**连触发一起短路**（EGG5"摇动无响应、限流一并停跑"由此获得结构保证）。
-    /// 开启时按标准动画执行。
+    ///
+    /// 分流是**逐 ID** 的：单独关闭某 ID 时，其余 ID 照常播。
     public func perform(_ id: MotionID, _ changes: () -> Void) {
         let spec = MotionRegistry.spec(for: id)
-        if !isMotionEnabled {
+        if !isEnabled(id) {
             if case .keepTrigger = spec.triggerPolicy {
                 let transaction = Transaction(animation: nil)
                 withTransaction(transaction) { changes() }

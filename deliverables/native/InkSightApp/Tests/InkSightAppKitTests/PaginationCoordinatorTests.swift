@@ -2,6 +2,9 @@ import XCTest
 import InkSightAppKit
 import InkSightCore
 
+/// 计数盒（引用类型，便于在转义闭包中安全累加计数）。
+private final class CounterBox { var count = 0 }
+
 /// 开发包 #6 契约测试：TypographySignature 缓存作废机制链路。
 ///
 /// 三契约：
@@ -150,5 +153,73 @@ final class PaginationCoordinatorTests: XCTestCase {
         }
         XCTAssertEqual(processedIDs.sorted(), [2, 3, 4])
         XCTAssertEqual(coordinator.enqueueBackground([]), 0, "队列清空后应为 0")
+    }
+
+    // MARK: - 正文按需取用（NFR-08 / NFR-03 合规由构造保证）
+
+    /// 生产路径：入队**不读正文**，处理时才读——保证「任意时刻常驻正文 ≤1 章」，
+    /// 不会把「遍历全书生成 anchor」搬进内存（NFR-08）。
+    func testLazyEnqueueDoesNotMaterializeBodyTextUntilProcessed() throws {
+        let coordinator = PaginationCoordinator()
+        _ = coordinator.apply(a(), chapterText: sampleChapter(), chapterID: 1,
+                              containerSize: containerSize, screenScale: screenScale)
+
+        let box = CounterBox()
+        let payload = sampleChapter()
+        let pending = coordinator.enqueueBackgroundLazy([
+            (id: 7, textProvider: { () -> String? in
+                box.count += 1
+                return payload
+            }),
+            (id: 8, textProvider: { () -> String? in
+                box.count += 1
+                return payload
+            }),
+        ])
+        XCTAssertEqual(pending, 2)
+        XCTAssertEqual(box.count, 0, "入队时不得读取正文（NFR-08：正文不常驻内存）")
+
+        let sigA = sig(a())
+        let first = coordinator.processOneBackgroundChapter(typography: a(),
+                                                            containerSize: containerSize,
+                                                            screenScale: screenScale)
+        XCTAssertEqual(first?.id, 7)
+        XCTAssertEqual(box.count, 1, "处理一章只读一章正文")
+        XCTAssertNotNil(coordinator.pageAnchorCache.anchors(for: 7, signatureHash: sigA.digest),
+                        "后台章重分页后应落库锚点")
+
+        let second = coordinator.processOneBackgroundChapter(typography: a(),
+                                                             containerSize: containerSize,
+                                                             screenScale: screenScale)
+        XCTAssertEqual(second?.id, 8)
+        XCTAssertEqual(box.count, 2, "仍是逐章按需读取")
+    }
+
+    /// 取不到正文的章应被跳过并继续下一章（源文件被移除等）。
+    func testBackgroundSkipsChapterWithUnavailableBody() throws {
+        let coordinator = PaginationCoordinator()
+        _ = coordinator.apply(a(), chapterText: sampleChapter(), chapterID: 1,
+                              containerSize: containerSize, screenScale: screenScale)
+        _ = coordinator.enqueueBackgroundLazy([
+            (id: 9, textProvider: { nil }),
+            (id: 10, textProvider: { self.sampleChapter() }),
+        ])
+        let r = coordinator.processOneBackgroundChapter(typography: a(),
+                                                        containerSize: containerSize,
+                                                        screenScale: screenScale)
+        XCTAssertEqual(r?.id, 10, "取不到正文的章应被跳过，继续处理下一章")
+    }
+
+    /// 当前章同步重排耗时观测（FR-031「当前章同步重排（15–30ms）」的本机量级）。
+    /// 用真实 Demo 章节（《红楼梦》第一回，~2 千字）测量；断言取宽松上限以避免 CI 抖动误报，
+    /// 真机量级待 POC（两类证据不混装）。
+    func testCurrentChapterSyncRetimeIsMeasuredAndBounded() throws {
+        let coordinator = PaginationCoordinator()
+        let report = coordinator.apply(a(), chapterText: SampleChapter.text, chapterID: SampleChapter.chapterID,
+                                       containerSize: containerSize, screenScale: screenScale)
+        XCTAssertTrue(report.cacheInvalidated)
+        XCTAssertGreaterThan(report.currentChapterRetimeMs, 0, "重排耗时应被真实计量")
+        XCTAssertLessThan(report.currentChapterRetimeMs, 1000, "当前章同步重排不应超过 1s（本机宽松上限）")
+        print("[REPAGINATE] realChapterRetimeMS=\(report.currentChapterRetimeMs) pages=\(coordinator.pageAnchorCache.anchors(for: SampleChapter.chapterID, signatureHash: report.newSignature)?.count ?? -1)")
     }
 }
