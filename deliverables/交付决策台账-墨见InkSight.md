@@ -563,6 +563,11 @@
 **裁定**：台账 D-53 记录的「本机宿主沙箱拒绝 `sandbox_apply`（退出码 74），统一用 `swift build/test --disable-sandbox`」的约束**已解除**。2026-10-28 复测：两包干净重建（`rm -rf .build` 后 `swift build`）、`swift test`、iOS 26.5 Simulator SDK 构建**均无需 `--disable-sandbox`，退出码 0**（Core 41/0、App 177/0）。根因是当时宿主环境（WorkBuddy 沙箱）拒绝 Swift 编译器自身的 sandbox 初始化，属环境限制而非代码问题；现环境已不触发。**影响面**：README 构建命令段更新为标准命令；D-53 及其后各开发包登记中的 `--disable-sandbox` 字样**保留为沿革记录**（台账规则 4：旧条原文不改，是历史事实），后续新读者以 README 与本条为准。**是否改判**：否（环境变化，非判定变更；D-53 的裁定在当时环境下正确）。
 
 ---
+### D-70　Xcode 工程生成与 IPA 构建链路（GUI 可构建）；`.gitignore` 对 `*.xcodeproj` 的豁免
+
+**随附交付登记（D-53 执行 · 开发包 #20）**：`deliverables/native/` 新增 `project.yml`（XcodeGen 配置）、`InkSight.xcodeproj`（4 target：InkSightApp / InkSightAppUI / InkSightAppKit / InkSightCore，全 `framework.static`）、`InkSightApp/Info.plist`、`dist/InkSight-0.1.0-unsigned.ipa`。**构建验证**：`xcodebuild` 真机 Release（`-sdk iphoneos -destination generic/platform=iOS`，`CODE_SIGNING_ALLOWED=NO`）**BUILD SUCCEEDED**；模拟器 Debug 亦 BUILD SUCCEEDED；主可执行 2.3MB／5953 符号（`RootView`/`Typesetter`/`Degradation`/`LocalSearchStore` 均在，静态合并成立）；IPA 578KB，解压后主可执行校验通过。**过程中解决的四类真实问题（留痕）**：①仓库原是纯 SPM（无 `.xcodeproj`），需 XcodeGen 生成；②`InkSightRootApp.swift` 在 `InkSightAppUI/` 与 `InkSightAppMain/` 同时存在——SPM 靠模块区分，Xcode target 靠文件名区分，直接合并 Sources 报 `Filename used twice`，故拆 4 target；③`sqlite3.tbd` 在 Xcode 26 SDK 路径下 `sdk:` 引用不成立，改 `OTHER_LDFLAGS: -lsqlite3`（与 Package.swift 同源）；④framework target 缺 `GENERATE_INFOPLIST_FILE` 导致 `did not contain an Info.plist`；⑤**动态 framework 未嵌入 .app**（主可执行仅 73KB、代码不在），改 `framework.static` 后静态合并成立（2.3MB）。**`.gitignore` 变更（纪律调整）**：原 `.gitignore` 忽略 `*.xcodeproj`（SPM 可重建、不必提交）；现**豁免** `deliverables/native/InkSight.xcodeproj` 以便 GUI 构建，仅继续忽略其 `xcuserdata/` 与 `swiftpm/` 用户态目录；`build/`、`DerivedData/` 仍忽略（353MB 派生数据）。**是否改判**：是（提交策略变更，理由：GUI 构建入口需随仓库分发；XcodeGen 可从 `project.yml` 复现，故工程文件本身不是唯一真源）。**已知限制（不掩饰）**：**IPA 为未签名**——本机 `security find-identity -v -p codesigning` 显示 **0 个有效签名身份**（无 Apple Developer 证书），故无法直接安装到普通 iPhone；可用于构建验证、越狱机、或经企业/开发者签名后分发。正式分发需开发者账号 + 证书 + provisioning profile 后以 `CODE_SIGNING_ALLOWED=YES` 重签。**待真机（不混装）**：签名后的真机安装与启动验证；`UILaunchScreen` 为空字典（无启动图，待设计提供）。
+
+---
 ## 3. 状态索引
 
 ### 3.1 仍开放（客户后续再定）

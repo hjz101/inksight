@@ -1,0 +1,75 @@
+name: InkSight
+options:
+  bundleIdPrefix: com.inksight
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+targets:
+  InkSightApp:
+    type: application
+    platform: iOS
+    sources:
+      - path: InkSightApp/Sources/InkSightAppMain
+    dependencies:
+      - target: InkSightAppUI
+    info:
+      path: InkSightApp/Info.plist
+      properties:
+        CFBundleDisplayName: 墨见 InkSight
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.inksight.app
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "6.0"
+        CODE_SIGNING_ALLOWED: "NO"
+        CODE_SIGN_IDENTITY: ""
+  InkSightAppUI:
+    type: framework.static
+    platform: iOS
+    sources:
+      - path: InkSightApp/Sources/InkSightAppUI
+    dependencies:
+      - target: InkSightAppKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.inksight.ui
+        SWIFT_VERSION: "6.0"
+        CODE_SIGNING_ALLOWED: "NO"
+        GENERATE_INFOPLIST_FILE: YES
+  InkSightAppKit:
+    type: framework.static
+    platform: iOS
+    sources:
+      - path: InkSightApp/Sources/InkSightAppKit
+    dependencies:
+      - target: InkSightCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.inksight.kit
+        SWIFT_VERSION: "6.0"
+        CODE_SIGNING_ALLOWED: "NO"
+        GENERATE_INFOPLIST_FILE: YES
+  InkSightCore:
+    type: framework.static
+    platform: iOS
+    sources:
+      - path: InkSightCore/Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.inksight.core
+        SWIFT_VERSION: "6.0"
+        CODE_SIGNING_ALLOWED: "NO"
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  InkSightApp:
+    build:
+      targets:
+        InkSightApp: all
+    run:
+      config: Debug

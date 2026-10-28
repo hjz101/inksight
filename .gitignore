@@ -1,11 +1,20 @@
 # Swift Package Manager 构建产物（可重建，体积大）
 .build/
 .swiftpm/
-*.xcodeproj
-*.xcworkspace
+
+# Xcode 派生数据（可重建，体积大）
+build/
+DerivedData/
 
 # macOS
 .DS_Store
 
 # WorkBuddy 运行时数据（项目记忆，非交付物）
 .workbuddy/
+
+# 注（D-70）：`*.xcodeproj` 原先被忽略（SPM 可重建、不必提交）。
+# 现改为**提交** `deliverables/native/InkSight.xcodeproj`——它由 XcodeGen 从
+# `project.yml` 生成，是 GUI 构建的入口；`.xcodeproj` 内的用户态文件仍忽略：
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
