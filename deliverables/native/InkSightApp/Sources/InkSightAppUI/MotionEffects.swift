@@ -202,7 +202,7 @@ struct T5SwitchRippleEffect: View {
     var body: some View {
         MotionSampleShell(id: .t5SwitchRipple, action: trigger) {
             ZStack {
-                Text("切换项").font(.caption)
+                Text("换一个版本").font(.caption)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color(white: 0.96))
                 if motionAnimationEnabled(.t5SwitchRipple) {
@@ -244,7 +244,9 @@ struct T6InkGrowEffect: View {
                             .fill(Color(white: 0.55))
                             .frame(width: 18, height: grown ? 12 + CGFloat(index) * 10 : 2)
                             .opacity(grown ? 1 : 0)
-                            .animation(grown ? .spring(response: 0.4, dampingFraction: 0.8).delay(Double(index) * 0.08) : nil,
+                            // 错峰间隔取自目录（DESIGN §4.1：间隔 25ms），不散落写死
+                            .animation(grown ? MotionEffectCatalog.timing(for: .t6InkGrow).animation
+                                .delay(Double(index) * MotionEffectCatalog.timing(for: .t6InkGrow).stagger) : nil,
                                        value: grown)
                         Text("\(index + 1)")
                             .font(.caption2)
@@ -457,6 +459,8 @@ struct Triangle: Shape {
 /// 实现说明：真机摇动需 CoreMotion 加速度计；本期用**拖拽方向反转**代理（跨平台可编译可测），
 /// 真机加速度判定标**待真机 POC**。
 struct EGG5ShakePanelEffect: View {
+    /// 年龄态——EGG5 **仅 `.adultConfirmed` 注册**（DESIGN §4.1）。
+    var ageState: AgeGateState = .adultConfirmed
     @State private var panelShown = false
     @State private var lastDirection = 0
     @State private var reversalCount = 0
@@ -505,10 +509,13 @@ struct EGG5ShakePanelEffect: View {
     }
 
     private func trigger() {
+        // 注册条件①：年龄态（EGG5 **仅 `.adultConfirmed` 注册**）
+        guard ageState == .adultConfirmed else { return }
+        // 注册条件②：阅读工具条展开（摇一摇唤的是书摘卡，与「换一个版本」是两条独立路径）
+        guard toolbarExpanded else { return }
         // 限流器随触发注册同一条开关：关态 → 停跑（不响应、不消耗额度）
         limiter.setRunning(motionFeatureEnabled(.egg5ShakePanel))
-        guard toolbarExpanded else { return }          // 仅工具条展开时生效
-        guard limiter.allowsTrigger() else { return }  // 限流一并停跑
+        guard limiter.allowsTrigger() else { return }
         MotionCoordinator.shared.perform(.egg5ShakePanel) { panelShown = true }
     }
 }

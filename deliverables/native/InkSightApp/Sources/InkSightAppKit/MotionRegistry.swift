@@ -298,9 +298,10 @@ public final class MotionCoordinator {
     }
 
     /// 该播时返回该 ID 的标准动画；**总关、该 ID 被单独关闭、或系统开启「减弱动态效果」→ nil**（＝不播动画路径）。
-    /// （真机曲线/时长由各动效实现自带，Registry 只裁决"播不播"。）
+    /// （**逐 ID 曲线与时长**取自 `MotionEffectCatalog.timing(for:)`（DESIGN §4.1 单一来源），
+    ///   不共用一个时长。）
     public func animation(for id: MotionID) -> Animation? {
-        shouldAnimate(id) ? .snappy(duration: MotionRegistry.spec(for: id).closable ? 0.3 : 0) : nil
+        shouldAnimate(id) ? MotionEffectCatalog.timing(for: id).animation : nil
     }
 
     /// 唯一播放入口。**总关或该 ID 被单独关闭**时按 `triggerPolicy` 分流：
@@ -327,6 +328,6 @@ public final class MotionCoordinator {
             withTransaction(transaction) { changes() }
             return
         }
-        withAnimation(.snappy(duration: 0.3)) { changes() }
+        withAnimation(MotionEffectCatalog.timing(for: id).animation) { changes() }
     }
 }

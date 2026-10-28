@@ -222,6 +222,56 @@ final class MotionRuntimeTests: XCTestCase {
         XCTAssertTrue(firedEgg, "减弱动态效果下 dropTrigger 的 ID 仍应执行触发")
     }
 
+    /// 13 条实现描述都必须登记**自然触发位置**（DESIGN §4.1 单一来源）——
+    /// 供「把动效接到产品界面真实位置」时取用，避免各人各写一份。
+    @MainActor
+    func testEveryDescriptorRecordsNaturalTriggerPosition() {
+        for id in MotionID.allCases {
+            let trigger = MotionEffectCatalog.descriptor(for: id).naturalTrigger
+            XCTAssertFalse(trigger.isEmpty, "\(id) 必须登记自然触发位置")
+        }
+    }
+
+    /// 逐 ID 的**曲线与时长**必须登记（DESIGN §4.1 单一来源）——**不共用一个时长**。
+    @MainActor
+    func testEveryMotionHasRegisteredTiming() {
+        for id in MotionID.allCases {
+            let timing = MotionEffectCatalog.timing(for: id)
+            XCTAssertGreaterThan(timing.duration, 0, "\(id) 必须登记时长")
+            XCTAssertGreaterThanOrEqual(timing.damping, 0, "\(id) 阻尼系数须合法")
+            XCTAssertGreaterThanOrEqual(timing.stagger, 0, "\(id) 错峰间隔须合法")
+        }
+        // 关键差异点：DESIGN 逐 ID 时长不同 ⇒ 不得全部共用一个值
+        XCTAssertNotEqual(MotionEffectCatalog.timing(for: .t2VersionSwap).duration,
+                          MotionEffectCatalog.timing(for: .t5SwitchRipple).duration,
+                          "T2（260ms）与 T5（600ms）时长不同，不得共用")
+        // 错峰：T6 间隔 25ms、EGG3 墨滴 60ms
+        XCTAssertEqual(MotionEffectCatalog.timing(for: .t6InkGrow).stagger, 0.025, accuracy: 0.0001)
+        XCTAssertEqual(MotionEffectCatalog.timing(for: .egg3PaperPull).stagger, 0.06, accuracy: 0.0001)
+    }
+
+    /// 协调器的标准动画**逐 ID 派生**（不得全部共用一个时长）。
+    @MainActor
+    func testCoordinatorUsesPerIDTiming() {
+        let coordinator = MotionCoordinator()
+        XCTAssertNotNil(coordinator.animation(for: .t2VersionSwap))
+        XCTAssertNotNil(coordinator.animation(for: .t5SwitchRipple))
+        // 时长不同 ⇒ 动画对象不同（SwiftUI Animation 为值类型，可比较）
+        XCTAssertNotEqual(coordinator.animation(for: .t2VersionSwap),
+                          coordinator.animation(for: .t5SwitchRipple),
+                          "不同 ID 应使用各自的曲线与时长")
+    }
+
+    /// EGG5 的**年龄态注册条件**：仅 `.adultConfirmed`（DESIGN §4.1）——其余 12 个无年龄限制。
+    @MainActor
+    func testEGG5RegistersOnlyForAdultConfirmed() {
+        XCTAssertEqual(MotionEffectCatalog.descriptor(for: .egg5ShakePanel).ageGate, .adultConfirmedOnly)
+        for id in MotionID.allCases where id != .egg5ShakePanel {
+            XCTAssertEqual(MotionEffectCatalog.descriptor(for: id).ageGate, .any,
+                           "\(id) 无年龄态注册限制")
+        }
+    }
+
     // MARK: - 目录完整性（13 条，一个不多一个不少）
 
     @MainActor
