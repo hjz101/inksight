@@ -45,7 +45,8 @@ public struct RootTabView: View {
             DiscoveryScreen(ageState: ageState, variant: variant)
                 .tabItem { Label("发现", systemImage: "sparkles") }
                 .tag(0)
-            ShelfScreen(bookShelf: bookShelf, onOpenReader: onOpenReader, searchStore: searchStore)
+            ShelfScreen(bookShelf: bookShelf, ageState: ageState, onOpenReader: onOpenReader,
+                        searchStore: searchStore)
                 .tabItem { Label("书架", systemImage: "books.vertical") }
                 .tag(1)
             NotesScreen(highlightsStore: highlightsStore)

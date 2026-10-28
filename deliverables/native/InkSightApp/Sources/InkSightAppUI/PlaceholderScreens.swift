@@ -164,6 +164,8 @@ struct InkScreen: View {
 /// 导入浮层走系统 `.fileImporter`（非自定义玻璃浮层，故不触碰 `GlassSurface` 白名单）。
 struct ShelfScreen: View {
     let bookShelf: BookShelfStore
+    /// 当前年龄态（FR-032 ⑥：未成年人模式进度独立存储）。
+    var ageState: AgeGateState = .adultConfirmed
     let onOpenReader: () -> Void
     /// 本地检索索引（nil ＝索引不可用，导入仍可完成）。
     let searchStore: LocalSearchStore?
@@ -202,7 +204,8 @@ struct ShelfScreen: View {
 
             // 阅读器内联呈现（0 玻璃；跨平台，不依赖 .sheet/.fullScreenCover 语义）
             if let engine = activeEngine {
-                ReaderSurfaceView(engine: engine, onExit: { activeEngine = nil }, bookShelf: bookShelf)
+                ReaderSurfaceView(engine: engine, onExit: { activeEngine = nil },
+                                  bookShelf: bookShelf, ageState: ageState)
                     .transition(.identity)
             }
         }

@@ -34,7 +34,8 @@ struct RootView: View {
             if readerActive {
                 ReaderSurfaceView(
                     engine: RootView.sampleEngine,
-                    onExit: { MotionCoordinator.shared.perform(.uit2EdgeBack) { readerActive = false } }
+                    onExit: { MotionCoordinator.shared.perform(.uit2EdgeBack) { readerActive = false } },
+                    ageState: ageState
                 )
                 .transition(.identity)
             } else {

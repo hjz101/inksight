@@ -30,6 +30,8 @@ public struct ReaderSurfaceView: View {
 
     /// 书架（FR-018 多副本发现用）；nil ＝ 未注入 → 面板只展示空候选（诚实空态）。
     let bookShelf: BookShelfStore?
+    /// 当前年龄态（FR-032 ⑥）：`.minorConfirmed` 时进度写**模式内独立存储**，不污染主进度。
+    let ageState: AgeGateState
 
     /// 运行期会话（开发包 #8）：持有当前生效引擎与当前页，承载换排版与落点重定位。
     ///
@@ -56,19 +58,27 @@ public struct ReaderSurfaceView: View {
     @State private var toolbarVisible = true
     /// 浮层内可编辑的排版预设（与持久化预设同源）。
     @State private var editablePreset: ReaderTypography = TypographyPresetStore().load()
+    /// FR-018 版本对比：对比报告（nil ＝ 未打开）。
+    @State private var compareReport: VersionDiff.Report?
+    @State private var compareLeftName = ""
+    @State private var compareRightName = ""
 
-    public init(onExit: @escaping () -> Void, bookShelf: BookShelfStore? = nil) {
+    public init(onExit: @escaping () -> Void, bookShelf: BookShelfStore? = nil,
+                ageState: AgeGateState = .adultConfirmed) {
         self.onExit = onExit
         self.engine = nil
         self.bookShelf = bookShelf
+        self.ageState = ageState
         _session = StateObject(wrappedValue: ReaderSession(engine: nil, coordinator: .shared))
     }
 
     public init(engine: ReaderEngine, onExit: @escaping () -> Void,
-                bookShelf: BookShelfStore? = nil) {
+                bookShelf: BookShelfStore? = nil,
+                ageState: AgeGateState = .adultConfirmed) {
         self.engine = engine
         self.onExit = onExit
         self.bookShelf = bookShelf
+        self.ageState = ageState
         // 用 App 级单例协调器（与设置页共用同一套锚点缓存——见 `PaginationCoordinator.shared`）
         _session = StateObject(wrappedValue: ReaderSession(engine: engine, coordinator: .shared))
     }
@@ -182,6 +192,25 @@ public struct ReaderSurfaceView: View {
                 .transition(.opacity)
             }
         }
+        // FR-018 版本对比（次入口）：逐章列出一致/有差异/仅一侧
+        .overlay {
+            if let report = compareReport {
+                ZStack(alignment: .bottom) {
+                    Color.black.opacity(0.28)
+                        .ignoresSafeArea()
+                        .onTapGesture { compareReport = nil }
+                    VersionCompareView(report: report,
+                                       leftName: compareLeftName,
+                                       rightName: compareRightName,
+                                       onClose: { compareReport = nil })
+                        .frame(maxHeight: 520)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 8)
+                }
+                .transition(.opacity)
+            }
+        }
         // FR-018「换一个版本」面板：底部 sheet 类（D-38 高度口径由 BottomSheetContainer 承载）。
         .sheet(isPresented: $showVersionPicker) {
             if let live = session.engine {
@@ -190,6 +219,11 @@ public struct ReaderSurfaceView: View {
                     candidates: versionCandidates(live),
                     onSelect: { candidate in
                         switchToVersion(candidate)
+                        showVersionPicker = false
+                    },
+                    onCompare: {
+                        // FR-018 次入口：与匹配度最高的候选做逐章对比（指纹级，不做全文 diff）
+                        buildCompareReport(for: live)
                         showVersionPicker = false
                     },
                     onEditLabel: { id, label in
@@ -246,7 +280,17 @@ public struct ReaderSurfaceView: View {
     private func recordProgressIfPossible() {
         guard let live = session.engine else { return }
         guard let page = live.page(at: session.currentPage) else { return }   // 索引越界 → 不写，绝不写 0
-        live.recordProgress(at: page.anchor.charOffset)
+        let offset = page.anchor.charOffset
+
+        // **FR-032 ⑥：模式内进度独立存储**——未成年人模式下只写模式内副本，
+        // **不污染主进度**；经监护验证正常退出时由 `MinorModeExitCoordinator` 合并回去。
+        if ageState == .minorConfirmed {
+            let progress = ReadingProgress(bookID: live.bookID, chapterID: live.chapterID,
+                                           charOffset: offset, fingerprint: page.anchor.fingerprint)
+            try? MinorModeProgressStore().record(progress)
+            return
+        }
+        live.recordProgress(at: offset)
     }
 
     /// UIT1 判定：点按是否落在**正文中央区域**（宽高各中间 1/3）。
@@ -294,6 +338,29 @@ public struct ReaderSurfaceView: View {
                 return (head: headPrefix, tail: tailSuffix)
             }
         )
+    }
+
+    /// 构建版本对比报告（FR-018 次入口）：逐章取两侧正文 → 指纹比较。
+    ///
+    /// **不做全文 diff**：长书全文 diff 会爆内存，且用户要的是"差在哪一章"，
+    /// 不是逐字差异（那是编辑器的活）。
+    private func buildCompareReport(for live: ReaderEngine) {
+        guard let shelf = bookShelf,
+              let current = shelf.item(for: live.bookID) else { return }
+        let candidates = versionCandidates(live)
+        guard let best = candidates.first,
+              let target = shelf.item(for: best.id) else { return }
+
+        let chapterCount = min(current.chapters.count, target.chapters.count)
+        var leftTexts: [String] = []
+        var rightTexts: [String] = []
+        for index in 0..<chapterCount {
+            leftTexts.append(shelf.chapterText(for: current, chapterIndex: index) ?? "")
+            rightTexts.append(shelf.chapterText(for: target, chapterIndex: index) ?? "")
+        }
+        compareReport = VersionDiff.compare(left: leftTexts, right: rightTexts)
+        compareLeftName = current.fileURL?.lastPathComponent ?? current.title
+        compareRightName = best.fileName
     }
 
     /// **真实切换版本**：加载目标副本同章正文 → 用对齐引擎算出目标偏移 → 替换引擎并恢复位置。

@@ -628,6 +628,11 @@
 **随附交付登记（D-53 执行 · 开发包 #32）**：`ReaderSurface` 新增 `switchToVersion` 的书架回写、`toolbarVisible` 状态、`SpatialTapGesture` 中央点按与 `isCenterTap` 判定 ＋ `ReaderInteractionContractTests`（4）。**测试**：InkSightApp **298 / 0**（294 ＋ 4），InkSightCore 41/0，iOS Simulator SDK Build complete。**闭环掉的两处空态**：①**FR-018 书架回写**——切换版本后补 `shelf.recordProgress(ReadingProgress(...))`，使书架「继续阅读」锚点指向**新副本的目标位置**（否则回书架再点开仍是旧位置）；回写内容仍是 4 字段进度模型、**无 pageIndex**（有断言）。②**FR-014 UIT1 工具条显隐**——`gesture` 态**终于有了调用方**：正文**中央 1/3 区域**点按（`isCenterTap`）切换工具条显隐，手势期间进入 `.gesture`（纯色降级）→ **120ms** 淡回；工具条显隐用 `.transition(.identity)` **直切**（A 档：关闭态零动画）。**守住了被否决的方案**：测试断言源码**不含**自动恢复/自动隐藏（DESIGN §4.1「6 秒自动恢复」与「新增第二入口」均已否决）——**否决项要用测试守，否则下一版就会复活**。**诚实空态（未做/待后续）**：UIT1 的中央判定用「宽高各中间 1/3」，**DESIGN 未给精确边长**，该口径待真机 POC 手感校准；手势仅识别**点按**，未做「同一手势的位移容差」（真实触控会有位移，`SpatialTapGesture` 默认容差未调）；EGG4 页角折角的 `gesture` 态**仍无调用方**（需页角长按 + 吸附动效）；工具条「目录」「进度」仍是空回调。
 
 ---
+### D-83　FR-032 模式内进度写入 ＋ FR-018 版本对比（补齐两条半成品）
+
+**随附交付登记（D-53 执行 · 开发包 #33）**：新增 `VersionDiff`（逐章指纹对比）／`VersionCompareView`（对比面板）＋ 测试 `MinorProgressIsolationTests`（5）／`VersionDiffTests`（6）；`ReaderSurface` 新增 `ageState` 依赖与模式内写入分流、`buildCompareReport` 与对比 overlay；`ShelfScreen`／`RootTabView`／`RootView` 补 `ageState` 透传。**测试**：InkSightApp **309 / 0**（298 ＋ 11），InkSightCore 41/0，iOS Simulator SDK Build complete。**闭环掉的两条半成品**：①**FR-032 ⑥ 模式内进度写入**——此前只有"退出合并"这一半，`MinorModeProgressStore` **从未被写入**。现在 `ReaderSurface.recordProgressIfPossible` 按 `ageState` 分流：`.minorConfirmed` → 写**模式内独立存储**（不污染主进度），其余 → 写主进度。测试覆盖：模式内写入不动主进度、跨实例持久化、同书覆盖、**完整闭环**（主进度 50 → 模式内读到 500 → 验证退出 → 主进度归位 500 ＋ 模式内清空）、无 pageIndex。②**FR-018 版本对比**——次入口「版本对比」此前是空实现。现在 `VersionDiff.compare` 按章比较**归一化指纹**（空白/标点差异判为一致），输出 `一致／有差异／仅当前版本／仅候选版本` ＋ 汇总文案；`VersionCompareView` 展示，**无差异时如实说「两个版本内容一致」**（不假装有差异、不引导盲换）。**不做全文 diff**：长书全文 diff 会爆内存，且用户要的是"差在哪一章"——这是刻意的范围控制，不是能力不足。**测试过程中的一处修正（留痕）**：`onCompare`／`onEditLabel` 参数顺序写反导致编译失败（Swift memberwise 初始化器要求按声明顺序），已修正并在后续保持该顺序约定。**诚实空态（未做/待后续）**：版本对比**只与匹配度最高的候选比**（多候选逐一对比未做，UI 未给选择）；对比是**章节级**，不指出章内具体差异位置；模式内写入**需 App 层真实传入 `.minorConfirmed`**（当前 `RootView` 固定 `.adultConfirmed`，真机要接 `DeclaredAgeRange` 才有真实未成年人场景）；`guardianProof` 仍不跨页面共享；⑤ 家长标记适龄未做。
+
+---
 ## 3. 状态索引
 
 ### 3.1 仍开放（客户后续再定）
