@@ -535,6 +535,11 @@
 **随附交付登记（D-53 执行 · 开发包 #15）**：`deliverables/native/InkSightApp/`，新增 `ReaderNavigator`／`ReaderNavigatorTests`，改写检索视图、书架、根 Tab；**测试**：InkSightApp **159/0**（含 3 个导航路由测试），InkSightCore 41/0。**落地**：检索结果行可点击；`ReaderNavigator.shared` 以一次性请求跨 Tab 投递 `bookID/chapterIndex`；RootTabView 切换书架 Tab；ShelfScreen 消费请求并打开目标章节；本地文件导入成功后显式逐章建立 FTS 索引（索引失败不阻断阅读，搜索页诚实空态）。**诚实空态**：当前 SearchHit 尚不带字符偏移，跳转到章节而非命中字符位置；命中字符定位待后续接入 FTS offset/阅读器恢复链路。
 
 ---
+### D-65　FR-024a SearchHit 预留命中偏移字段（诚实 API 边界）
+
+**补充登记**：`LocalSearchStore.SearchHit` 新增可选 `charOffset: Int?`，`ReaderNavigationRequest` 已支持该字段。当前 FTS5 中文按字索引方案能可靠返回书/章/片段，但系统 sqlite3 的 FTS5 不提供可直接映射回原文 UTF-16 偏移的 `offsets()`（该辅助函数属于 FTS3/4，FTS5 不支持）；因此当前结果明确返回 `nil`，阅读器跳到目标章节而非伪装成精准字符位置。**不把不可验证的精确偏移写成已完成能力**。后续若要闭合，需由调用方在命中章节二次读取本地文件并扫描原始查询词，或更换支持位置信息的索引方案；不得把正文常驻 FTS 表当作偏移来源。
+
+---
 ## 3. 状态索引
 
 ### 3.1 仍开放（客户后续再定）

@@ -50,6 +50,8 @@ public final class LocalSearchStore: @unchecked Sendable {
         public let bookID: String
         public let bookTitle: String
         public let chapterIndex: Int
+        /// 命中字符偏移；当前 FTS5 索引返回章节级命中，无法可靠提供原文偏移时为 nil。
+        public let charOffset: Int?
         /// 命中片段（FTS5 snippet，含上下文）。
         public let snippet: String
         /// 相关性分（FTS5 bm25，越小越相关）。
@@ -179,7 +181,8 @@ public final class LocalSearchStore: @unchecked Sendable {
             let snippet = sqlite3_column_text(stmt, 3).map { String(cString: $0) } ?? ""
             let rank = sqlite3_column_double(stmt, 4)
             hits.append(SearchHit(bookID: bookID, bookTitle: bookTitle,
-                                  chapterIndex: chapterIndex, snippet: snippet, rank: rank))
+                                  chapterIndex: chapterIndex, charOffset: nil,
+                                  snippet: snippet, rank: rank))
         }
         return hits
     }
