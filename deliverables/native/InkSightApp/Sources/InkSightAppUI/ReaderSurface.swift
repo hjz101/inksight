@@ -52,6 +52,8 @@ public struct ReaderSurfaceView: View {
     @State private var lastAlignment: VersionAlignment?
     /// FR-014：阅读设置浮层是否呈现（四条可用性由 ReaderSettingsSheet 承载）。
     @State private var showSettings = false
+    /// UIT1 工具条显隐：**唯一入口 = 点按正文中央**（DESIGN §4.1），单手势、无自动恢复。
+    @State private var toolbarVisible = true
     /// 浮层内可编辑的排版预设（与持久化预设同源）。
     @State private var editablePreset: ReaderTypography = TypographyPresetStore().load()
 
@@ -92,6 +94,19 @@ public struct ReaderSurfaceView: View {
                 VStack(spacing: 0) {
                     readerTopBar(live)
                     ReaderPager(engine: live, page: pageBinding, mode: config.pageTurnMode, theme: theme)
+                        // **UIT1 工具条显隐**：唯一入口＝点按正文中央；单手势、无自动恢复。
+                        // 手势期间玻璃降为纯色（`.gesture`），结束后 120ms 淡回。
+                        .simultaneousGesture(
+                            SpatialTapGesture().onEnded { value in
+                                guard isCenterTap(value.location, size: ReaderLayout.shared.containerSize) else { return }
+                                glassPresentation = .gesture
+                                toolbarVisible.toggle()
+                                Task { @MainActor in
+                                    try? await Task.sleep(for: .seconds(GlassPresentationState.restoreDuration))
+                                    glassPresentation = .steady
+                                }
+                            }
+                        )
                         .onChange(of: session.currentPage) { _, _ in
                             recordProgressIfPossible()
                             // **FR-014 四态收起**：翻页/滚动中把工具条降为纯色+描边，
@@ -108,6 +123,7 @@ public struct ReaderSurfaceView: View {
                 // 翻页/滚动中 → `.scrolling` 降级纯色；静止 → `.steady` 完整玻璃。
                 VStack {
                     Spacer()
+                    if toolbarVisible {
                     ReaderToolbar(
                         presentation: glassPresentation,
                         onBookmark: addBookmarkAtCurrentPage,
@@ -123,6 +139,8 @@ public struct ReaderSurfaceView: View {
                             }
                         }
                     )
+                    .transition(.identity)   // A 档：显隐直切，不用系统动画
+                    }
                 }
             } else {
                 honestEmptyState
@@ -231,6 +249,16 @@ public struct ReaderSurfaceView: View {
         live.recordProgress(at: page.anchor.charOffset)
     }
 
+    /// UIT1 判定：点按是否落在**正文中央区域**（宽高各中间 1/3）。
+    ///
+    /// DESIGN §4.1：UIT1 唯一入口＝点按正文中央；**不得**加第二入口或自动恢复。
+    private func isCenterTap(_ location: CGPoint, size: CGSize) -> Bool {
+        guard size.width > 0, size.height > 0 else { return false }
+        let thirdW = size.width / 3, thirdH = size.height / 3
+        return location.x >= thirdW && location.x <= thirdW * 2
+            && location.y >= thirdH && location.y <= thirdH * 2
+    }
+
     // MARK: - 多副本对齐（FR-018）
 
     /// 当前副本的面板候选（pin 行）。
@@ -310,6 +338,15 @@ public struct ReaderSurfaceView: View {
         session.adopt(newEngine)
         session.restoreLanding()
         lastAlignment = alignment
+
+        // **回写书架**（FR-018）：切换版本后，书架项的「继续阅读」锚点要指向新副本的目标位置，
+        // 否则回到书架再点开仍是旧位置。`lastReadAnchor` 是 `ReadingProgress`（4 字段无 pageIndex）。
+        let fingerprint = newEngine.page(at: newEngine.resolvePageIndex(for: newOffset))?
+            .anchor.fingerprint ?? 0
+        shelf.recordProgress(ReadingProgress(bookID: target.bookID,
+                                             chapterID: chapterIndex,
+                                             charOffset: newOffset,
+                                             fingerprint: fingerprint))
     }
 
     // MARK: - 书签（FR-011）
