@@ -50,6 +50,10 @@ public struct ReaderSurfaceView: View {
     @State private var showVersionPicker = false
     /// FR-018：最近一次版本切换的对齐结果（诚实展示 exact/approximate/unavailable）。
     @State private var lastAlignment: VersionAlignment?
+    /// FR-014：阅读设置浮层是否呈现（四条可用性由 ReaderSettingsSheet 承载）。
+    @State private var showSettings = false
+    /// 浮层内可编辑的排版预设（与持久化预设同源）。
+    @State private var editablePreset: ReaderTypography = TypographyPresetStore().load()
 
     public init(onExit: @escaping () -> Void, bookShelf: BookShelfStore? = nil) {
         self.onExit = onExit
@@ -108,7 +112,16 @@ public struct ReaderSurfaceView: View {
                         presentation: glassPresentation,
                         onBookmark: addBookmarkAtCurrentPage,
                         onSwapVersion: { showVersionPicker = true },
-                        onSettings: {}
+                        onSettings: {
+                            // FR-014：打开设置浮层前进入 `.transition`（380ms 材质冻结），
+                            // 之后回到 `.steady`——**只调 opacity/transform，不插值材质参数**。
+                            glassPresentation = .transition
+                            showSettings = true
+                            Task { @MainActor in
+                                try? await Task.sleep(for: .seconds(GlassPresentationState.transitionDuration))
+                                glassPresentation = .steady
+                            }
+                        }
                     )
                 }
             } else {
@@ -123,6 +136,33 @@ public struct ReaderSurfaceView: View {
             prepareSession()
             // **FR-037：仅阅读器锁竖屏**（其他界面不受限）——进入即锁，退出即解。
             OrientationController.shared.lockReaderToPortrait()
+        }
+        // **FR-014 阅读设置浮层**（L3 玻璃白名单；四条可用性见 ReaderSettingsSheet）：
+        // 自绘 overlay 而非系统 sheet —— 系统 sheet 的关闭方式不受我们控制，
+        // 而 P0 要求 44pt 关闭按钮 / .escape / 36×4 把手 / scrim 点击关闭**四条都由我方实现**。
+        .overlay {
+            if showSettings {
+                ReaderSettingsSheet(
+                    preset: $editablePreset,
+                    theme: $theme,
+                    presentation: glassPresentation,
+                    onClose: {
+                        // 关闭前进入 `.transition`，避免浮层消失瞬间材质突变
+                        glassPresentation = .transition
+                        showSettings = false
+                        // 落盘排版预设（档位归一化后写）
+                        try? TypographyPresetStore().save(editablePreset)
+                        try? ThemeStore().save(theme)
+                        Task { @MainActor in
+                            try? await Task.sleep(for: .seconds(GlassPresentationState.transitionDuration))
+                            glassPresentation = .steady
+                            // 排版变更需重排（走既有链路，落点按 charOffset 重新二分）
+                            session.applyTypography(TypographyTiers.normalize(editablePreset))
+                        }
+                    }
+                )
+                .transition(.opacity)
+            }
         }
         // FR-018「换一个版本」面板：底部 sheet 类（D-38 高度口径由 BottomSheetContainer 承载）。
         .sheet(isPresented: $showVersionPicker) {
