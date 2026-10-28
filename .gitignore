@@ -1,0 +1,11 @@
+# Swift Package Manager 构建产物（可重建，体积大）
+.build/
+.swiftpm/
+*.xcodeproj
+*.xcworkspace
+
+# macOS
+.DS_Store
+
+# WorkBuddy 运行时数据（项目记忆，非交付物）
+.workbuddy/

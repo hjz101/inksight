@@ -1,0 +1,70 @@
+# 技术约束清单 · 墨见 InkSight（给架构/工程）
+
+v1.1｜摘自 PRD v2.10，并含台账 D-52 的架构侧同步；只列**不可妥协项**。凡标 Blocker 的，不达标即阻塞发布。
+
+## 一、排版与渲染
+
+**FR-031 排版唯一来源（Blocker）**
+- 渲染输入只有一种：`[Paragraph]`（type: text / image / title）结构化数据 ＋ `ReaderTypography` 单一排版来源。
+- 渲染层**不得接收 AttributedString，不得含任何 HTML**。
+- 零位移靠**自绘断行**：`CTTypesetterCreateLine` 只接受我方 range，禁则表＋逐字 advance 累加决定断点与标点宽度；显式关 `palt`/`halt` 兜底。
+- **前置条件：字体白名单（内置字体）**。不成立则「跨源零位移」在物理上不成立，只能降级为「同字体零位移」。
+- 验收 AC-1：喂 `<p style="font-size:20px;text-indent:2em">`，断言 `sourceStyleResidual == 0`。
+- 观测 AC-2：`strippedStyleCount > 0` 只进调试面板，**不设阈值、不进验收**。
+- POC-3 判定：标点密集样本上 `CTLineGetTypographicBounds` 与自绘累加 advance 之差 **>0.5pt 判不可行**。
+
+**`TypographySignature`（缺一项都会出事）**
+`hash(fontID, fontSize, lineHeightMultiplier, paragraphSpacingBefore, paragraphSpacingAfter, insets×4, indent, imagePlaceholderAspect, containerSize, screenScale, 禁则表版本号)`
+禁则表版本必须入签名——表一变断点就变，不入签名会让旧 anchor 永久复用错页，且只能靠重装 App 才"修好"。
+重分页：签名变化 → 同步作废全部缓存（O(1)）→ 当前章同步重排（15–30ms）→ 其余章后台分批（1 章/次）。
+
+**定位铁律**：任何持久化存储**不得以 `pageIndex` 作定位依据**，一律存 `charOffset + fingerprint`。`pageIndex` 只作 UI 快速显示 hint，签名不匹配即丢弃重算。改字号/边距即触发重排，存页码会当场跳页。
+
+**FR-008 五种翻页（摘要）**：仿真/覆盖/滚动/上下/无动画，帧率受 NFR-02 约束；仿真翻页期间玻璃浮层必须收起或转不透明。
+
+**FR-011 进度与书签（摘要）**：进度存到「章节＋字符偏移」，杀进程后恢复误差 ≤1 屏；进度以偏移为准、**不以页码为准**（跨设备边距差异会导致页码不同）。
+
+## 二、性能（Blocker）
+
+**NFR-01 冷启动（双指标，不合并）**：首帧 ≤800ms；首屏可交互 ≤1.2s。
+
+**NFR-08 分页缓存纪律**：`ChapterPaginationCache` key=`(chapterId, signature)`，**`PageAnchor` LRU 10 章**（架构 v1.9 勘误，台账 D-52；PageAnchor 非正文，不受"会话内存 ≤3 章"约束）；**`CTFrame` 按页 LRU 7 页（当前 ±3）**；**任何"遍历全书生成 anchor"的代码视为违规**（同时破内存与合规"预取仅内存 ≤3 章"）。目录（分章）只产 `(offset, byteLength)` 不解析正文；分页只做当前章＋前后各 1 章。20MB 首开：分章索引 40–80ms ＋ 首章分页，峰值预算约 90MB。
+
+**NFR-02 翻页帧率**：59fps+，ProMotion 设备 118fps+，掉帧率 <1%，单帧 P95 ≤16.7ms。
+前提：翻页期玻璃收起/不透明；仿真翻页的页位图不得与 backdrop 逐帧重算争 GPU。
+
+**NFR-03 内存**：常驻 ≤300MB，开 20MB txt ≤400MB，无 OOM。预算：页位图 ≤10MB（降采样，仅当前页＋相邻 2 页）、`CTFrame` **≤1MB（按页 LRU 7 页，当前 ±3；实测约 420KB——v1.0 的 8MB 为拍脑袋值，已由架构 v1.9 勘误，台账 D-52）**、会话正文本 ≤50KB（≤3 章）、SQLite cache 8MB。位图只在仿真翻页时物化。
+
+**NFR-06 功耗温控**：连读 30 分钟掉电 ≤5%、温升 ≤4℃（25℃）、不触发系统降亮度。
+前提（指标是架构换来的，不是调优出来的）：阅读页 0 玻璃、静止 3s 停 `CADisplayLink`、`preferredFrameRateRange` 仅动画期 118–120、不做逐帧自绘玻璃。
+
+**NFR-04 并发**：`min(6, 启用源数)`，单源超时 8s，**首屏增量回调：6s 起持续返回（实现策略，不作 Blocker）；整体硬上限：10s 到点即返回已到结果（Blocker 判据）**；`scenePhase != .active` 立即 `cancelAllTasks()`；`BGTaskScheduler` 不注册抓取任务（同时是未成年人模式断网的实现基础）。
+
+## 三、合规派生硬约束（不可协商）
+
+**FR-024a 本地全文检索**：索引对象仅本地导入文件；FTS 库设 `NSURLIsExcludedFromBackupKey`；万本级首屏 ≤1s。
+**FR-024b 在线进度映射**：只存章节号／标题／字符偏移／首尾指纹哈希，**表结构里没有正文字段**，FTS 不索引在线正文；检索范围＝本地 FTS ＋ 会话内存已加载章节（≤3 章），会话结束即销毁。**代价明确：在线书不支持跨会话全文检索。**
+**缓存目录**：`Library/Caches/InkSight/{Pages,Images}`、`Application Support/InkSight/FTS` 全部设 `NSURLIsExcludedFromBackupKey`；会话结束或一键清除即销毁。
+**FR-025 导出**：显式排除在线正文，只含本地文件、进度、笔记。
+
+## 四、动效
+
+**FR-030**：13 个 ID 必须登记（T1–T6、EGG1–EGG5、UIT1、UIT2），未登记构建失败；`MotionCoordinator` 为唯一入口。
+**全局总关＝不播动画路径，不是时长设 0**：`withTransaction(Transaction(animation: nil))` ＋ `AnyTransition.identity` ＋ 彩蛋不创建视图。验收为**首帧末帧逐帧 diff 为 0 且无中间帧**（截帧验证）。
+可关 11 个；T4 直切回位＋位置标签，T5 降级 0ms 静态成功态——**反馈必须留，动画不必播**。
+可关转场禁用系统 push / sheet morph。
+
+## 五、架构冻结版引用（台账 D-52 授权同步）
+
+架构文档已冻结（v2.6），此后只接受勘误单（定点替换、可追溯、不滚版本号）。以下约束已由架构侧冻结，本节**只列编号与出处、不复制字面**——避免两份文件各自演化（与台账 §4 规则 3 同源）。**实现前必须读架构原文**，本节是索引不是替代：
+
+| # | 约束 | 出处 |
+|---|---|---|
+| 1 | `CTFrame` 视同正文、落盘四禁令（不落盘任何路径／不进崩溃快照含 `MetricKit` diagnostic 包／不进内存转储） | 架构 v2.4 §二，合规侧书面归档 |
+| 2 | `Persist` 落盘单门（全部磁盘写入经门面；第三方正文在类型层不存在，绕过门面直写 `FileManager` 即违规） | 架构勘误 E-04 |
+| 3 | `Degradation` 降级申报结构（`declaresData` 必填不给默认值；申报清单须含"为何不算需申报状态"一栏，CI 对照） | 架构勘误 E-02 / E-04 |
+| 4 | `AgeGateToken` 类型约束（`.minorConfirmed` 下分龄调用语法上不可达；例外通道类型隔离） | 架构 v2.2 §二 |
+| 5 | D-38 底部 sheet 高度口径（≤ 屏高 75%＝639pt＋内部滚动；单块 30% 面积兜底仅屏内卡片类） | 台账 D-38 |
+| 6 | 勘误单机制（冻结版只接受定点替换，不滚版本号；单据含"为什么它容易回来"一栏） | 架构 v2.6 §五 |
+
+**本清单其余条文（NFR-01 双指标、FR-031、定位铁律、合规派生硬约束、FR-030 等）维持 v1.0 原文不动**——本次同步（台账 D-52）只改 NFR-08/NFR-03/NFR-04 三处数值口径并新增本节，不触碰任何既有判定。

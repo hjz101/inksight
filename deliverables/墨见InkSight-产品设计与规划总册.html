@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>墨见 InkSight · 产品设计与规划总册</title>
+<style>
+  :root{
+    --ink:#1E1D1A; --sub:#6B675F; --line:#E2DFD8; --bg:#FBFAF7;
+    --accent:#3E6B5C; --accent-soft:#EAF1EE; --warn:#8A3B2E; --warn-soft:#FBF0ED;
+    --serif:"Songti SC","STSong","Source Han Serif SC",Georgia,serif;
+    --ui:-apple-system,"PingFang SC","Helvetica Neue",sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--ui);
+       font-size:15.5px;line-height:1.85;letter-spacing:.01em}
+  .wrap{max-width:860px;margin:0 auto;padding:64px 40px 120px}
+
+  /* 封面 */
+  .cover{padding-bottom:38px;border-bottom:2px solid var(--ink);margin-bottom:46px}
+  .kicker{font-size:12px;letter-spacing:.22em;color:var(--accent);margin-bottom:16px}
+  h1{font-family:var(--serif);font-size:42px;line-height:1.25;margin:0 0 8px;letter-spacing:.02em}
+  .sub-title{font-size:16px;color:var(--sub);margin:0 0 22px}
+  .meta-row{display:flex;flex-wrap:wrap;gap:8px;font-size:12.5px;color:var(--sub)}
+  .meta-row span{background:#F1EFE9;border-radius:999px;padding:4px 12px}
+
+  /* 警示块 */
+  .alert{background:var(--warn-soft);border-left:3px solid var(--warn);
+         padding:20px 22px;margin:26px 0;border-radius:0 10px 10px 0}
+  .alert h3{margin:0 0 10px;font-size:15px;color:var(--warn);letter-spacing:.04em}
+  .alert p{margin:0 0 8px;font-size:14px}
+  .alert p:last-child{margin-bottom:0}
+
+  h2{font-family:var(--serif);font-size:26px;margin:64px 0 6px;letter-spacing:.02em;
+     padding-bottom:10px;border-bottom:1px solid var(--line)}
+  h2 .num{color:var(--accent);font-size:15px;margin-right:12px;letter-spacing:.1em}
+  h3{font-size:16.5px;margin:34px 0 10px;letter-spacing:.02em}
+  h4{font-size:14.5px;margin:22px 0 8px;color:var(--accent);letter-spacing:.04em}
+  p{margin:0 0 14px}
+  ul,ol{margin:0 0 16px;padding-left:22px}
+  li{margin-bottom:7px}
+  strong{font-weight:600}
+  .lead{font-size:16.5px;color:#3A3833;line-height:1.9}
+
+  table{width:100%;border-collapse:collapse;margin:16px 0 22px;font-size:13.5px}
+  th{text-align:left;background:#F1EFE9;padding:9px 11px;font-weight:600;
+     border-bottom:1px solid #D8D4CB;letter-spacing:.02em}
+  td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  td code,p code,li code{background:#F1EFE9;padding:1px 5px;border-radius:4px;
+     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0 24px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .card h4{margin:0 0 6px;font-size:14px;color:var(--ink)}
+  .card p{margin:0;font-size:13.5px;color:var(--sub);line-height:1.75}
+  .card .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;
+    background:var(--accent-soft);color:var(--accent);margin-bottom:8px;letter-spacing:.04em}
+
+  .quote{border-left:3px solid var(--accent);padding:4px 0 4px 18px;margin:20px 0;
+    font-family:var(--serif);font-size:16px;color:#33312C;line-height:1.85}
+
+  .pill{display:inline-block;font-size:11.5px;padding:1px 8px;border-radius:999px;
+    background:var(--accent-soft);color:var(--accent);letter-spacing:.03em;white-space:nowrap}
+  .pill.red{background:#F7E4DE;color:var(--warn)}
+  .pill.gray{background:#EEECE6;color:#6B675F}
+
+  .divider{height:1px;background:var(--line);margin:38px 0}
+  .foot{margin-top:70px;padding-top:22px;border-top:1px solid var(--line);
+        font-size:12.5px;color:var(--sub)}
+  @media print{body{background:#fff}.wrap{padding:0}h2{page-break-after:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ==================== 封面 ==================== -->
+<header class="cover">
+  <div class="kicker">软件交付特战队 · 交付总册</div>
+  <h1>墨见 InkSight</h1>
+  <p class="sub-title">iOS 原生小说阅读 App · 产品设计与规划</p>
+  <div class="meta-row">
+    <span>iOS 26+</span><span>Liquid Glass</span><span>聚合书源 + 用户导入</span>
+    <span>研究形态</span><span>含可点击高保真原型</span>
+  </div>
+</header>
+
+<div class="alert">
+  <h3>⚠ 风险前置：本方案「仅作产品研究与技术预研，不用于实际发行」</h3>
+  <p>本方案按你的要求，完整保留了「聚合书源 + 用户导入」形态。但必须把话说明白：该形态在中国现行法律框架下被判定为<strong>阻断级风险，不可用于实际发行</strong>，理由集中在三点——</p>
+  <p><strong>1. 司法采「用户感知标准」。</strong>只要用户在 App 内读到统一排版、无跳转、无来源标识的内容，法院就认定是「你的 App 在提供作品」，"内容不在我服务器"不构成免责。</p>
+  <p><strong>2. 分发针对性抓取规则＝技术支持型帮助侵权。</strong>再叠加书源市场、聚合搜索、榜单推荐、广告变现，构成要件即齐全。国内已有书源类 App 开发者以侵犯著作权罪获有罪判决，定罪核心恰是「编写抓取规则 + 系统聚合 + 社群推荐 + 营利」。</p>
+  <p><strong>3. 渠道层面直接堵死。</strong>App Store 指南 5.2.3 禁止协助非法文件共享、提供保存/转换/下载第三方媒体的能力；2.5.19 禁止审核期隐藏功能（后果是下架并封开发者账号）。国内安卓渠道对「图书阅读类」硬性要求网络出版服务许可证或内容合作证明。</p>
+  <p>因此本册全部内容应被理解为<strong>产品形态研究、交互与视觉验证、以及技术预研</strong>。第 9 章给出了可发行的收敛路径（本地精读器 / 正版化）。</p>
+</div>
+
+<!-- ==================== 0 一页读懂 ==================== -->
+<h2><span class="num">00</span>一页读懂</h2>
+
+<p class="lead">一句话定义：<strong>一个把「找书、读书、记住」三件事重新做一遍的阅读器</strong>——内容靠用户自己带来，产品只负责把"读"这件事做到极致。</p>
+
+<div class="cards">
+  <div class="card">
+    <span class="tag">目标用户</span>
+    <h4>18–30 岁、日均阅读 40 分钟以上</h4>
+    <p>深夜床上读、通勤读、蹲坑读。手机就是书房。接受自己找书源，但不想当运维。</p>
+  </div>
+  <div class="card">
+    <span class="tag">核心矛盾</span>
+    <h4>精力花在维护工具，而不是读书</h4>
+    <p>书源腐烂、章节缺失、切换版本即排版崩坏——用户沦为"技术维护工"，这是聚合类产品的原罪。</p>
+  </div>
+  <div class="card">
+    <span class="tag">差异化 1</span>
+    <h4>液态玻璃，但克制</h4>
+    <p>玻璃只上浮层，正文区永远干净。一屏最多 1–2 处。堆满玻璃连读 30 分钟必晕，这是红线。</p>
+  </div>
+  <div class="card">
+    <span class="tag">差异化 2</span>
+    <h4>可玩的轻互动</h4>
+    <p>13 个动效/彩蛋 ID，全部可关。炫技只在书架、发现、墨量页；阅读页只留翻页。</p>
+  </div>
+  <div class="card">
+    <span class="tag">差异化 3</span>
+    <h4>把死数据做成墨量</h4>
+    <p>阅读轨迹、连续阅读墨迹、年度星图。单本轨迹用红色竖线标出切换版本时刻——全 App 最有说服力的一屏。</p>
+  </div>
+  <div class="card">
+    <span class="tag">反面清单</span>
+    <h4>不做社交共读</h4>
+    <p>调研结论明确：共读是最贵且最不用做的伪需求。年轻人缺的不是书友，是"下一本读什么"。</p>
+  </div>
+</div>
+
+<h3>本次交付清单</h3>
+<table>
+  <tr><th style="width:38%">交付物</th><th>内容</th><th style="width:16%">形态</th></tr>
+  <tr><td>产品方案总册（本文件）</td><td>调研、合规、产品、交互、设计系统、技术架构、路线图</td><td>HTML</td></tr>
+  <tr><td>可点击高保真原型</td><td>10 个页面、7 套主题、13 个动效 ID、可控关停</td><td>单文件 HTML</td></tr>
+  <tr><td>PRD v1.9</td><td>9 大模块功能清单、NFR、主流程、边界、B 版定位</td><td>Markdown</td></tr>
+  <tr><td>竞品与机会调研报告</td><td>5 款产品功能矩阵、真痛点、9 条机会点</td><td>Markdown</td></tr>
+  <tr><td>行业合规与风险意见书 v1.1</td><td>法律定性、合规结构、资质、不可回退红线</td><td>Markdown</td></tr>
+  <tr><td>技术约束清单 / 埋点需求表</td><td>Blocker 级不可妥协项、事件口径</td><td>Markdown</td></tr>
+  <tr><td>禁词与文案合规检查表</td><td>视觉/前端/文案/运营/提审四方共用</td><td>Markdown</td></tr>
+  <tr><td>元数据与提审合规清单</td><td>App Store 元数据自查项</td><td>Markdown</td></tr>
+</table>
+
+<!-- ==================== 1 市场结论 ==================== -->
+<h2><span class="num">01</span>市场与竞品结论</h2>
+
+<p>横向拆解了云书阁、开元阅读、用心读书，另取微信读书（正版标杆）与开源阅读 Legado（聚合标杆）作参照。结论不铺功能表，只留能改变产品决策的部分。</p>
+
+<h3>三条被验证的真痛点</h3>
+<table>
+  <tr><th style="width:26%">痛点</th><th>证据</th><th style="width:30%">产品回应</th></tr>
+  <tr>
+    <td><strong>找不到对的下一本</strong></td>
+    <td>"书荒"是伪需求，真需求是"选择困难"。用户书架有 200 本、读完 3 本。</td>
+    <td>发现页做「今天只推一本」，不推推荐流；读完自动给"下一本"而非"更多"。</td>
+  </tr>
+  <tr>
+    <td><strong>读了记不住</strong></td>
+    <td>笔记功能存在但无人用——因为记笔记的成本高于收益。</td>
+    <td>笔记标签化 + 书摘卡片化，一句话即可留痕；不追求完整笔记体系。</td>
+  </tr>
+  <tr>
+    <td><strong>阅读数据是死的</strong></td>
+    <td>所有竞品的统计页都只有"累计时长/册数"，看完即忘，无回访动机。</td>
+    <td>墨量体系：轨迹、墨迹、星图。把数据变成"我的阅读史"。</td>
+  </tr>
+</table>
+
+<h3>聚合类产品的原罪：书源腐烂</h3>
+<p>这是本次调研最重要的一条发现，直接决定了产品重心：</p>
+<ul>
+  <li><strong>规则失效</strong>——站点改版即批量失效，用户开机先测搜、搜完先校对。</li>
+  <li><strong>章节缺失</strong>——目录能拉到但正文空、或章节错位，用户要手动切换版本补。</li>
+  <li><strong>排版崩坏</strong>——各源 HTML 结构不同，同一本书切换版本就变形（字号、行距、段落全变）。</li>
+</ul>
+<div class="quote">用户不是不愿意折腾，是不愿意<strong>一直</strong>折腾。产品要做的不是"支持更多书源"，而是"让一次折腾换来长期稳定"。</div>
+<p>对应到设计上，就是本册反复强调的两条：<strong>切换版本前后排版零位移</strong>（剥离源样式，只取文本），以及<strong>状态必须诚实</strong>（见下）。</p>
+
+<h3>一条强反模式，必须写进设计红线</h3>
+<p><strong>「假装有书的空书架」</strong>——加载中、失败、空数据全部伪装成有内容。年轻人对假数据的容忍度是零，一旦发现 App 在演，会立刻判定"这 App 是假的"并卸载。</p>
+<p>因此所有空态/失败态/加载态都必须是真实且可解释的。原型里专门做了「书源管理」页作示范：3 个书源，1 个正常、2 个失效，并逐条写明失败原因（如"目录选择器未匹配到节点，疑似站点改版""请求超时 8.2s"），带重新检测按钮。<strong>禁止只说"导入失败"</strong>。</p>
+
+<!-- ==================== 2 合规 ==================== -->
+<h2><span class="num">02</span>合规结论与不可回退红线</h2>
+
+<p>本章不是免责声明，而是<strong>会直接改变产品结构的硬约束</strong>。共 7 条，分成两栏：左边是法律红线（碰了就是风险），右边是产品完整性红线（碰了产品就废）。</p>
+
+<h3>合规红线（5 条 + 1 补充条款，出现即判不合格）</h3>
+<table>
+  <tr><th style="width:6%">#</th><th style="width:34%">红线</th><th>具体含义</th></tr>
+  <tr><td>1</td><td><strong>预置 / 内置书源</strong></td><td>出厂零书源，不内置、不推荐、不订阅下发</td></tr>
+  <tr><td>2</td><td><strong>书源市场、共享源榜单、聚合搜索</strong></td><td>不提供官方书源列表、不做跨站聚合结果页</td></tr>
+  <tr><td>3</td><td><strong>在线书源内容的缓存与下载</strong></td><td>仅本地导入文件可离线；缓存与索引目录排除 iCloud 备份</td></tr>
+  <tr><td>4</td><td><strong>与内容获取挂钩的变现</strong></td><td>会员解锁书源、广告、打赏、付费一律不做</td></tr>
+  <tr><td>5</td><td><strong>跨源自动补章</strong></td><td>只做手动切换后的位置对齐；"自动"二字是定性开关</td></tr>
+</table>
+<p style="font-size:13.5px;color:var(--sub)"><strong>补充条款（与前 5 条同级）：未成年人模式不得存在任何自动退出路径。</strong>系统年龄声明变化或联网重试即可解除家长主动开启的模式，等于绕开家长验证。须写成代码层类型约束——分龄请求凭据在 <code>.minorConfirmed</code> 下恒为 <code>nil</code>，语法上不可调用。<br>
+另：第 1、2 条在撰写红线时<strong>必须显式括注"含不提供书源二维码入口"</strong>。二维码是规则分发通道，无法用"我们不预置书源"吸收——红线写窄了，执行时就只守字面。</p>
+
+<h3>产品完整性红线（3 条）</h3>
+<table>
+  <tr><th style="width:6%">#</th><th style="width:34%">红线</th><th>为什么不能退</th></tr>
+  <tr><td>1</td><td><strong>切换版本前后排版零位移</strong></td><td>渲染输入不含源样式（<code>sourceStyleResidual == 0</code>）。做不到，切换版本就是毁体验</td></tr>
+  <tr><td>2</td><td><strong>状态诚实（禁止"假装有书的空书架"）</strong></td><td>保留合规内核：这不是单纯体验问题。<strong>"假装有书"本质是"App 在提供内容"的外观，既是留存杀手，也是定性证据</strong></td></tr>
+  <tr><td>3</td><td><strong>任何手势必须有非手势等价路径</strong></td><td>彩蛋可以藏，能力不能藏。只靠"摇一摇"才能换文件，即判不合格</td></tr>
+</table>
+<p style="font-size:13.5px;color:var(--sub)">此外两条不得退：<strong>正文区不得出现装饰性动效与玻璃</strong>（如实理由：实时模糊重算与温控/掉电指标不可兼得，不披合规外衣）；<strong>动效感知仅限 opacity 与 transform</strong>（改视口尺寸以扩大玻璃可采样区域，等于用未知量换面积预算）。</p>
+
+<h3>必须补齐的三处阻断级遗漏</h3>
+<ul>
+  <li><strong>未成年人模式</strong>——开关、内容过滤、时长限制、家长验证。年龄分档采用四态：<code>.adultConfirmed</code> / <code>.minorConfirmed</code> / <code>.ageUnresolved</code> / <code>.unverified</code>。宵禁只给"确定未成年"与"未完成确认"两态（<code>.ageUnresolved</code> 套宵禁、不套时长、允许导入），<code>.unverified</code> 不套。详见第 8 章决策表。</li>
+  <li><strong>版权声明与投诉通道</strong>——应用内权利声明入口、侵权投诉表单、处理时限、重复侵权者处理、下架响应流程。</li>
+  <li><strong>书源规则凭据校验</strong>——导入时检测 Cookie/Token/Authorization 等字段，命中即拒绝。规则可能内含他人账号凭据，导入即构成非法获取数据。</li>
+</ul>
+
+<h3>独立风险：字体（不在上述 5 条内，但同等致命）</h3>
+<p>字体是唯一<strong>不会出现在任何设计评审里、只会出现在包体里</strong>的合规风险：</p>
+<ul>
+  <li><strong>按名称引用系统字体</strong>（如 <code>PingFangSC-Regular</code>）——无风险，可行。</li>
+  <li><strong>随包内置第三方字体文件</strong>——触发的不是小说版权，是<strong>字库著作权</strong>。中文商业字库维权活跃、判赔常见，无商用授权文件不得随包。</li>
+</ul>
+<p>因此字体方案定为：苹方按名称引用（不随包）、思源宋随包（SIL OFL 允许嵌入分发，<strong>许可证本身就是授权文件</strong>）。<strong>截图里若出现特殊字体渲染，背后就对应着一份授权</strong>——这条也约束宣传物料。</p>
+<p><strong>随包 OFL 字体的三条实现要求（进打包清单）：</strong></p>
+<ol>
+  <li>随包附许可证全文与版权声明（<code>LICENSES/SourceHanSerif-OFL.txt</code>）；</li>
+  <li>不得修改字形（若修改须改用新字体名，不能沿用原名称）；</li>
+  <li>不得单独分发字体文件（只能随 App 分发，不能做成可导出的字体资源）。</li>
+</ol>
+
+<h3>资质路径（发行前必读）</h3>
+<p>接入正版内容或做社区/评论/上传，会触发<strong>网络出版服务许可证</strong>；应用上架需 ICP 备案与 APP 备案；若做付费阅读另需相应经营资质。安卓渠道对"图书阅读类"要求许可证或内容合作证明——纯本地阅读器同样撞这道墙。</p>
+
+<!-- ==================== 3 产品方案 ==================== -->
+<h2><span class="num">03</span>产品方案</h2>
+
+<h3>信息架构（5 个一级 Tab）</h3>
+<table>
+  <tr><th style="width:16%">Tab</th><th style="width:26%">核心职责</th><th>二级页面</th></tr>
+  <tr><td><strong>发现</strong></td><td>今天读什么</td><td>今日一本 · 继续阅读 · 书摘流 · 书源健康提示</td></tr>
+  <tr><td><strong>淘书</strong></td><td>主动找书</td><td>搜索（书名/作者）· 分类胶囊 · 封面瀑布流 · 书籍详情</td></tr>
+  <tr><td><strong>架上</strong></td><td>我的书与进度</td><td>网格视图 · 书脊视图 · 分组 · 阅读进度</td></tr>
+  <tr><td><strong>墨量</strong></td><td>阅读数据可视化</td><td>年度星图 · 连续墨迹 · 单本轨迹 · 成就</td></tr>
+  <tr><td><strong>我</strong></td><td>设置与合规入口</td><td>主题商店 · 阅读设置 · 书源管理 · 未成年人模式 · 权利声明</td></tr>
+</table>
+<p>命名说明：「架上」代替"书架"更口语、更轻；「墨量」把统计页从工具感拉回叙事感，是这个 App 的记忆点。Tab 数控制在 5 个，避免第 5 个变成垃圾桶。</p>
+
+<h3>功能模块与优先级</h3>
+<table>
+  <tr><th style="width:22%">模块</th><th>关键能力</th><th style="width:10%">优先级</th></tr>
+  <tr><td>M1 书城发现</td><td>今日一本、继续阅读、书摘流</td><td><span class="pill">P0</span></td></tr>
+  <tr><td>M2 书架</td><td>网格/书脊双视图、进度条、分组</td><td><span class="pill">P0</span></td></tr>
+  <tr><td>M3 阅读器</td><td>排版引擎、三种翻页、字号行距、夜间、TTS</td><td><span class="pill">P0</span></td></tr>
+  <tr><td>M4 书源与导入 <span class="pill gray">研究能力</span></td><td>规则导入、健康检测、手动切换版本、段落对齐</td><td><span class="pill">P0</span></td></tr>
+  <tr><td>M5 搜索 <span class="pill gray">研究能力</span></td><td>书名/作者检索、结果排序</td><td><span class="pill">P0</span></td></tr>
+  <tr><td>M6 笔记与统计</td><td>书摘、标签、墨量三视图</td><td><span class="pill">P1</span></td></tr>
+  <tr><td>M7 设置</td><td>主题、阅读偏好、未成年人模式、权利声明</td><td><span class="pill">P0</span></td></tr>
+  <tr><td>M8 个性化与互动</td><td>13 个动效 ID、主题皮肤、彩蛋</td><td><span class="pill">P1</span></td></tr>
+  <tr><td>M9 合规基座</td><td>年龄分档、投诉通道、凭据校验、状态诚实</td><td><span class="pill red">阻断级</span></td></tr>
+</table>
+
+<h3>核心主流程</h3>
+<ol>
+  <li><strong>导入</strong>：用户粘贴/选择书源规则 JSON → 凭据字段校验 → 规则结构校验 → 落地。</li>
+  <li><strong>搜索</strong>：输入书名/作者 → 并发查询已启用书源（限流 + 超时降级）→ 结果按可用性排序。</li>
+  <li><strong>入架</strong>：选中结果 → 拉详情与目录 → 写入本地库 → 出现在「架上」。</li>
+  <li><strong>阅读</strong>：打开 → 分章 → 首屏渲染 → 预加载前后各 N 页 → 进度落库。</li>
+  <li><strong>切换版本</strong>（异常路径）：正文缺失/排版异常 → 手动切换版本 → 段落指纹比对 → 提示"已对齐到第 12 章第 3 段" → 渲染输入剥离源样式，排版零位移。</li>
+  <li><strong>离线</strong>：仅本地导入文件可离线；远端内容不缓存。</li>
+</ol>
+
+<h3>本期不做</h3>
+<p>社交共读、书评社区、会员付费、跨源自动补章、远端内容离线下载、远端全文检索、有声书平台、AI 续写。每一条都有明确理由，见 PRD 第 6 章。</p>
+
+<!-- ==================== 4 差异化互动 ==================== -->
+<h2><span class="num">04</span>差异化：把可玩性做成系统</h2>
+
+<p>轻互动不是撒几个动画，而是一套<strong>有编号、有开关、有降级</strong>的注册表。共 13 个 ID，全部可被"减弱动效"总开关关停，关停后残留动效为 0。</p>
+
+<h3>动效注册表（13 个 ID）</h3>
+<table>
+  <tr><th style="width:9%">ID</th><th style="width:24%">名称</th><th>设计</th><th style="width:12%">可关</th></tr>
+  <tr><td><code>T1</code></td><td>翻开转场</td><td>书架卡片 3D 翻开进入阅读器：封面先立起再翻开，<code>perspective + rotateY + scale</code>，360–520ms</td><td>是</td></tr>
+  <tr><td><code>T2</code></td><td>换书脊过渡</td><td>切换版本时旧书脊滑出、新书脊滑入，附一次轻微书页翻动闪烁</td><td>是</td></tr>
+  <tr><td><code>T3</code></td><td>色带漫延</td><td>切主题时新色以圆形 <code>clip-path</code> 从点击点铺满全屏，520ms</td><td>是（P1 起真开关）</td></tr>
+  <tr><td><code>T4</code></td><td>位置记忆回弹</td><td>退出阅读时 3D 闭合回缩，<strong>回到原卡片位置</strong>而非停在阅读器。跟手拖拽 + 220ms 收尾</td><td>否（功能反馈）</td></tr>
+  <tr><td><code>T5</code></td><td>书源导入涟漪</td><td>导入成功时从导入点荡开涟漪。<strong>总关时降级为 0ms 静态成功态</strong>，反馈不丢、动画不播</td><td>否（随总开关降级）</td></tr>
+  <tr><td><code>T6</code></td><td>墨量错峰生长</td><td>进入墨量页时柱状/星图按序错峰生长，避免整屏同时弹出</td><td>是</td></tr>
+  <tr><td><code>EGG1</code></td><td>液态封面</td><td>长按封面 600ms：多层渐变位移 + 轻微波浪扭曲，松手回弹</td><td>是</td></tr>
+  <tr><td><code>EGG2</code></td><td>捏合进书脊</td><td>书架双指捏合 → 书脊视图（与控制坞按钮双通道）</td><td>是</td></tr>
+  <tr><td><code>EGG3</code></td><td>纸页回弹</td><td>书架顶部下拉 90px：纸张回弹 + 浮现随机公版书摘</td><td>是</td></tr>
+  <tr><td><code>EGG4</code></td><td>折角书签</td><td>阅读页长按右下角 500ms：页角折起并生成书签</td><td>是</td></tr>
+  <tr><td><code>EGG5</code></td><td>摇一摇书摘</td><td>摇动手机弹出随机书摘卡（厚玻璃，高度 ≤ 280pt）。原型用连点章节标题 3 次模拟</td><td>是</td></tr>
+  <tr><td><code>UIT1</code></td><td>工具栏切换</td><td>点击正文中央 → 上下边缘 UI 收缩/滑入（<code>chromeToggle</code>）。原「三指下滑」方案已否决——系统手势优先级高于 App，且"三指拖移"属辅助功能，冲突会直接让残障用户不可用</td><td>是</td></tr>
+  <tr><td><code>UIT2</code></td><td>边缘返回</td><td>单指边缘侧滑退出阅读（<code>edgeBack</code>），仅滚动/直切模式启用；仿真翻页模式由拖拽翻页接管</td><td>否</td></tr>
+</table>
+
+<h3>七套主题皮肤</h3>
+<p>主题必须同时影响<strong>图标色、强调色、玻璃折射色、转场配色</strong>四层，而不是换个背景色。这是原型验收项。</p>
+<table>
+  <tr><th style="width:14%">主题</th><th style="width:12%">情境</th><th style="width:20%">底色 / 文字</th><th>强调色</th></tr>
+  <tr><td>晨雾（默认）</td><td>白天通勤</td><td><code>#F7F6F2</code> / <code>#1E1D1A</code></td><td>墨绿 <code>#3E6B5C</code></td></tr>
+  <tr><td>纸月</td><td>午后护眼</td><td><code>#FAF3E2</code> / <code>#3A3128</code></td><td>赭石 <code>#A87540</code></td></tr>
+  <tr><td>樱雾</td><td>轻阅读</td><td><code>#FBF1F3</code> / <code>#332428</code></td><td>胭脂 <code>#C4667F</code></td></tr>
+  <tr><td>苔原</td><td>长时阅读</td><td><code>#EEF1E8</code> / <code>#2A2F26</code></td><td>苔绿 <code>#5A7A4E</code></td></tr>
+  <tr><td>墨夜（夜间默认）</td><td>熄灯后</td><td><code>#121212</code> / <code>#B4B0A8</code></td><td>雾青 <code>#6E9B8A</code></td></tr>
+  <tr><td>霞光</td><td>情绪化阅读</td><td><code>#16121F</code> / <code>#E8E1F2</code></td><td>霓紫 <code>#B98CFF</code></td></tr>
+  <tr><td>暮山</td><td>深夜冷静</td><td><code>#232A33</code> / <code>#DCE3EA</code></td><td>冷蓝 <code>#7FA6C9</code></td></tr>
+</table>
+<p>夜间不用纯黑（<code>#000</code>+<code>#FFF</code> 是高对比酷刑）。墨夜配 <code>#121212</code>，柔和夜间对比度 5.4:1 为默认档，另提供高对比夜间 12.1:1 可选档——不为凑 7:1 把夜间整体拉亮，那会毁掉夜间体验。</p>
+
+<h3>墨量：把死数据做活</h3>
+<ul>
+  <li><strong>年度阅读星图</strong>——极坐标散点，每个点是一本书，半径是阅读时长，角度是月份。</li>
+  <li><strong>连续阅读墨迹</strong>——横向累积条，连续天数越多墨色越浓。</li>
+  <li><strong>单本阅读轨迹</strong>——时间轴上标出每次阅读与<strong>切换版本时刻（红色竖线）</strong>。这一屏是全 App 最有说服力的证据：它把"我曾经为了读一本书折腾过几次"变成了可见的东西。</li>
+</ul>
+
+<!-- ==================== 5 设计系统 ==================== -->
+<h2><span class="num">05</span>设计系统：液态玻璃怎么用才不晕</h2>
+
+<p>液态玻璃的观感关键不是"磨砂"，而是<strong>折射</strong>——要有边缘高光、内部色调折射、微妙的色散。只用 <code>backdrop-filter: blur()</code> 做出来的是一层毛玻璃，廉价感立刻出来。</p>
+
+<h3>三档材质</h3>
+<table>
+  <tr><th style="width:14%">档位</th><th style="width:22%">用途</th><th>配方</th></tr>
+  <tr><td><strong>薄 Thin</strong></td><td>TabBar、小控件、工具条</td><td><code>blur(20px) saturate(180%) brightness(1.05)</code>，边框 <code>1px rgba(255,255,255,.55)</code>，内高光 <code>inset 0 1px 0 rgba(255,255,255,.6)</code>，投影 <code>0 6px 20px rgba(0,0,0,.08)</code></td></tr>
+  <tr><td><strong>标准 Regular</strong></td><td>卡片、浮层</td><td><code>blur(30px) saturate(190%)</code>，圆角 28，投影 <code>0 12px 40px rgba(0,0,0,.12)</code></td></tr>
+  <tr><td><strong>厚 Thick</strong></td><td>模态、大面板</td><td><code>blur(44px) saturate(200%)</code>，圆角 36，投影 <code>0 18px 60px rgba(0,0,0,.16)</code></td></tr>
+</table>
+<p><strong>折射模拟</strong>：<code>::before</code> 做 1px 内环渐变高光（顶亮底暗），<code>::after</code> 铺一层轻微偏移的折射色，<code>mix-blend-mode: screen</code>（暗色主题用 <code>overlay</code>），<code>opacity .35</code>。这两层是"玻璃感"与"毛玻璃感"的分水岭。</p>
+
+<h3>排版基准（可直接量测）</h3>
+<table>
+  <tr><th style="width:30%">项</th><th>值</th></tr>
+  <tr><td>正文字号</td><td>20pt（三档 19 / 20 / 21）</td></tr>
+  <tr><td>行盒</td><td>35pt（20 × 1.75，不要用 line-spacing 叠加）</td></tr>
+  <tr><td>左右边距</td><td>20pt</td></tr>
+  <tr><td>对齐</td><td>左对齐，<strong>不做两端对齐</strong>；首行<strong>不缩进</strong></td></tr>
+  <tr><td>段间距</td><td>12pt</td></tr>
+  <tr><td>字体</td><td>正文 PingFang Regular；标题 Songti SC</td></tr>
+  <tr><td>标点</td><td><code>line-break: strict</code>（避头尾）</td></tr>
+</table>
+
+<h3>五条不可破的设计红线</h3>
+<ol>
+  <li><strong>玻璃克制</strong>：一屏最多 1–2 处玻璃浮层。</li>
+  <li><strong>阅读区零玻璃</strong>：正文区绝对没有玻璃、没有装饰字，只有纸感底色 + 文字。</li>
+  <li><strong>夜间不纯黑</strong>：<code>#121212</code> 起步。</li>
+  <li><strong>炫技分区</strong>：转场/彩蛋只在书架、发现、墨量、主题页；阅读页只保留翻页与轻微呼吸。</li>
+  <li><strong>状态诚实</strong>：加载/失败/空态必须真实可解释，禁止伪装。</li>
+</ol>
+
+<!-- ==================== 6 技术架构 ==================== -->
+<h2><span class="num">06</span>技术架构</h2>
+
+<h3>分层与模块</h3>
+<table>
+  <tr><th style="width:16%">层</th><th>职责</th><th style="width:34%">关键模块</th></tr>
+  <tr><td>表现层</td><td>SwiftUI 视图、玻璃材质、动效编排</td><td>ReaderView / ShelfView / GlassKit / MotionRegistry</td></tr>
+  <tr><td>领域层</td><td>业务规则、用例</td><td>ReadingUseCase / SourceUseCase / ProgressAligner</td></tr>
+  <tr><td>数据层</td><td>持久化、缓存、索引</td><td>LibraryStore / ChapterCache / ProgressStore / StatsStore</td></tr>
+  <tr><td>基础层</td><td>解析、网络、沙箱</td><td>SourceEngine / RuleInterpreter / Sandbox / NetworkGate</td></tr>
+</table>
+
+<h3>阅读引擎（技术难度最高）</h3>
+<ul>
+  <li><strong>排版</strong>：优先 CoreText 自绘分页（TextKit 2 在超长文本与自定义避头尾上不够可控）。按容器高度切页，处理孤行寡行与标点避头尾。</li>
+  <li><strong>翻页</strong>：覆盖 / 滑动 / 仿真三模式。仿真翻页（curl）在 120Hz 下必须用 GPU 着色器而非逐帧重绘，否则帧率必崩。</li>
+  <li><strong>大文件</strong>：20MB txt 流式分章，增量布局，预加载窗口前后各 N 页。首屏渲染目标 ≤ 1s。</li>
+  <li><strong>编码</strong>：GBK / GB18030 / UTF-8 / UTF-16 自动探测，乱码兜底。</li>
+  <li><strong>段落指纹</strong>：段落首尾 200 字哈希 + 标题归一，切换版本后按指纹定位并容错匹配；对不上时降级为百分比并明示。</li>
+</ul>
+
+<h3>书源引擎与沙箱</h3>
+<ul>
+  <li>规则四类抽象：搜索 / 详情 / 目录 / 正文。表达式层统一 CSS Selector、XPath、JSONPath、正则。</li>
+  <li>执行在 JavaScriptCore 隔离沙箱：无网络直连、超时与内存上限、崩溃隔离。主机侧只授予受限的 HTTP 能力。</li>
+  <li>并发限流：多源并发上限可控，失败快速降级，请求去重，避免把用户手机变成爬虫。</li>
+</ul>
+
+<h3>性能红线（Blocker）</h3>
+<table>
+  <tr><th style="width:42%">指标</th><th>目标（目标值，非实测）</th></tr>
+  <tr><td>翻页帧率</td><td><strong>59fps+；ProMotion 120Hz 下 118fps+</strong></td></tr>
+  <tr><td>首屏可交互</td><td><strong>≤ 1.2s</strong>；首屏内容完整 ≤ 900ms <span style="font-size:13.5px;color:var(--sub)">（降为观测项）</span></td></tr>
+  <tr><td>20MB txt 首开</td><td>≤ 1s</td></tr>
+  <tr><td>连续阅读 30 分钟</td><td>外壳温升 <strong>≤ 4℃</strong>（25℃ 室温），掉电 <strong>≤ 5%</strong></td></tr>
+  <tr><td>玻璃面积占比</td><td>单屏 ≤ 35%（超过则 GPU 合成开销不可控）；<strong>双口径，按容器类型分判</strong>——①<strong>屏内卡片类</strong>：单块玻璃 ≤ 屏面积 30% ＝ <strong>100,451pt²</strong>（基准视口 393×852＝334,836pt²；<strong>上限按屏面积比例计算，不同机型以实际屏面积为基准</strong>）；②<strong>底部 sheet 类</strong>：≤ 屏高 75%（<strong>639pt</strong>）＋ 超出部分内部滚动，不外溢、不裁切、不删内容，<strong>不适用</strong>单块 30% 面积兜底——30% 套到 353 宽的底部 sheet 上等价于高度 ≤284.6pt ＝ 屏高 33.4%，与"底部 sheet"这个形态本身不相容，<strong>尺子用错了对象</strong>。<br><strong>处置口径分两路</strong>：屏内卡片类超限 → 降一档材质或改纯色；底部 sheet 类超限 → 限高 ＋ 内部滚动。理由：<strong>降一档不改变被约束的量</strong>（L3→L1 面积分毫未动），<strong>删内容去迁就面积上限是本项目最不该出现的操作</strong>（依据 D-29／D-38）</td></tr>
+</table>
+<p style="font-size:13.5px;color:var(--sub)">数值以 PRD 与技术约束清单为源（台账 <strong>D-01</strong>、<strong>D-17</strong>）：总册是对外与审计的第一顺位文件，属摘要层，摘要可以更严、不该更松。首屏可交互由 400ms 改 1.2s，因两者相差 3 倍，取可验的那个。</p>
+
+<h3>五个必须优先验证的 POC</h3>
+<ol>
+  <li><strong>仿真翻页 120Hz 帧率</strong>——最可能推翻整个阅读器方案的项，第一优先级。</li>
+  <li><strong>玻璃大面积模糊的 GPU 开销</strong>——A17/A18 上的实测拐点。</li>
+  <li><strong>JS 沙箱逃逸</strong>——书源规则的网络与文件访问边界。</li>
+  <li><strong>20MB 文件首开</strong>——分章与增量布局的真实耗时。</li>
+  <li><strong>书源批量失效的降级体验</strong>——10 个源同时挂掉时产品是否还站得住。</li>
+</ol>
+
+<h3>三个门面：把最容易被无声突破的约束变成可审计的</h3>
+<p>本轮真正的技术收获不是某个方案，而是把"规则"从文档搬进类型系统。<strong>能被编译器挡住的规则，不要写成文档警告。</strong>三条最容易被无声突破的约束，各自对应一个门面：</p>
+<table>
+  <tr><th style="width:16%">门面</th><th style="width:18%">管什么</th><th>做法</th></tr>
+  <tr>
+    <td><strong><code>Fetcher</code></strong></td>
+    <td>管「进」</td>
+    <td>唯一出网门面，未成年人模式下整体 <code>denyAll</code>；后台抓取任务不注册、导入模块不加载</td>
+  </tr>
+  <tr>
+    <td><strong><code>Persist</code></strong></td>
+    <td>管「存」</td>
+    <td>所有写盘路径必须经它，每条路径声明 <code>payload</code> 类型（用户文件/进度/笔记/第三方正文）。<strong>「第三方正文」这个类型在产品层不允许存在——不是禁用，是类型里没有。</strong>于是"不得落盘"从一条条款变成一个可 grep 的调用点清单</td>
+  </tr>
+  <tr>
+    <td><strong><code>Degradation</code></strong></td>
+    <td>管「出错」</td>
+    <td>任何 fallback 必须调 <code>degrade(kind, declaresData:detail:)</code>；声明必须落在<strong>降级申报清单</strong>（<code>降级申报清单-墨见InkSight.md</code>）里，CI 遍历 <code>Degradation.Kind</code> 全枚举做<strong>单测校验</strong>：清单未登记的 kind 令该单测失败、CI 挡合并（台账 <strong>D-15</strong>）</td>
+  </tr>
+</table>
+
+<h3>效力边界：三个门面各自买到了什么</h3>
+<p>这一节必须写清楚，因为总册是对外与审计的第一顺位文件，<strong>任何一处"已确保"被反问一次，整段可信度都会掉</strong>。</p>
+<table>
+  <tr><th style="width:20%">机制</th><th style="width:22%">效力等级</th><th>它真实买到了什么</th></tr>
+  <tr><td><code>Fetcher</code> / <code>Persist</code></td><td><strong>结构约束</strong></td><td>能力在类型层面不可表达。绕过它直接写 <code>FileManager</code> 本身即违规，且可静态检出</td></tr>
+  <tr><td><code>Degradation</code></td><td><strong>观测，非结构保证</strong></td><td><strong>它不消除说谎的可能——有人可以直接写 <code>declaresData: false</code>。</strong>但它把"无意遗漏"降级成了"故意误报"，而后者是可追责的。<strong>它买到的是责任归属，不是正确性。</strong></td></tr>
+  <tr><td>分龄权限令牌 <code>AgeGateToken</code></td><td><strong>结构约束</strong></td><td>令牌只能由策略层产出且 <code>.minorConfirmed</code> 下恒为 <code>nil</code>，"自动重试分龄"在语法上调用不出来</td></tr>
+</table>
+<p style="font-size:13.5px;color:var(--sub)">原则：<strong>结构能守的用结构守，守不住的要有观测，两者都没有的地方不许写"已确保"。</strong>按此口径，本册对 <code>Degradation</code> 一律表述为「已识别并缓解」，不写「已确保」。</p>
+
+<h3>矩阵三值：让"假文案"在结构上生成不出来</h3>
+<p>设计侧发现发行版里写「在线功能不可用」是一句假话——发行版根本没有在线功能，不是"有但被禁用"。<strong>声明一个不存在的限制，和声明不存在的内容一样是虚假陈述，只是方向相反。</strong></p>
+<p>根因是能力矩阵用二值（✓/✗），无法区分"受限"与"不存在"。修正为三值，并增加构建变体维度：</p>
+<table>
+  <tr><th style="width:14%">单元格</th><th style="width:26%">含义</th><th>派生文案</th></tr>
+  <tr><td><code>✓</code></td><td>可用</td><td>无需说明</td></tr>
+  <tr><td><code>✗</code></td><td><strong>存在但受限</strong></td><td>「…不可用」合法</td></tr>
+  <tr><td><code>∅</code></td><td><strong>不存在</strong></td><td><strong>必须沉默</strong>——结构上不生成任何表述</td></tr>
+</table>
+<p>矩阵增加 <code>buildVariant ∈ {research, release}</code>；文案键从 <code>state</code> 改为 <strong><code>(state, variant)</code></strong>，且<strong>只能从矩阵派生，禁止各屏手写</strong>。效果：发行版里那句假话<strong>从结构上就生成不出来</strong>，而不是靠两套文案各自维护（后者迟早漏一处）。</p>
+<p style="font-size:13.5px;color:var(--sub)">连带影响：NFR 验收须注明适用变体（如"在线端到端 P50 ≤2s"仅适用研究版）。</p>
+
+<h3>工时与定性的作用</h3>
+<p><strong>增量工时 5.5 人日</strong>（自绘阅读器层 3.5 + 自绘浮层 1.5 + 降级声明结构 0.5）；排版引擎 2.0 人日计入基线，不占增量。累计勘误 3 单，均走定点替换，不升版本号。</p>
+<p>关于"给约束定性"，值得记一句：<strong>定性不只是分类，它决定推翻难度，也决定谁有资格推翻。</strong>定性成"优化"，任何有写权限的人觉得没必要就能推翻；定性成"合规要求"，要推翻必须拿出合规结论——而多数想推翻它的人拿不出。<strong>难度可以被勤奋克服，资格不能。</strong></p>
+
+<h3>一条可复用的方法：给规则找一个"明确不该适用"的对象</h3>
+<p><strong>找不到反例，说明这条规则还没有边界，此刻它一定会被外推。</strong></p>
+<p>它的好处是不依赖自觉——不要求人停下来想清楚，而是要求交出一个具体物件；<strong>交不出来是可见的</strong>。</p>
+<p>这解释了本轮的一个现象：那几条被用宽的规则（"联网/导入"一刀切、宵禁定性、开启模式措辞），<strong>全都没有反例</strong>；而经得起推敲的判据（提示方向、可逆/不可逆、我方能力 vs 用户设备状态），<strong>每一条都自带一个反例</strong>。判据能防外推，不是因为写得更细，是因为它自带反例。</p>
+
+<!-- ==================== 7 路线图 ==================== -->
+<h2><span class="num">07</span>路线图</h2>
+
+<table>
+  <tr><th style="width:14%">阶段</th><th style="width:52%">能力</th><th>要验证的假设</th></tr>
+  <tr>
+    <td><strong>MVP</strong></td>
+    <td>阅读器（排版/翻页/夜间/字号）+ 书架 + 本地导入 + 书源导入与手动切换版本 + 主题 3 套 + 动效 T1/T4/T5</td>
+    <td>「排版零位移 + 状态诚实」是否足以让聚合用户留下</td>
+  </tr>
+  <tr>
+    <td><strong>V1.1</strong></td>
+    <td>墨量三视图 + 7 套主题 + 13 个动效 ID 全量 + 书源健康检测</td>
+    <td>阅读数据可视化能否带来周回访（这是留存假设，不是功能假设）</td>
+  </tr>
+  <tr>
+    <td><strong>V2.0</strong></td>
+    <td>正版书城对接（B 版路径）/ 或收敛为本地精读器 + 笔记体系</td>
+    <td>能否走通可发行路径，把研究形态转成真生意</td>
+  </tr>
+</table>
+
+<h3>B 版定位：可发行的收敛路径</h3>
+<p>若转为可发行版本，产品从「聚合书源」收敛为<strong>「本地 txt/epub 精读器 + 正版书城对接」</strong>：</p>
+<ul>
+  <li><strong>保留</strong>：阅读器、排版引擎、7 套主题、13 个动效、墨量统计、本地导入、笔记。</li>
+  <li><strong>删除</strong>：书源引擎、聚合搜索、切换版本、书源管理。</li>
+  <li><strong>新增</strong>：正版书城对接、账号与授权、购买与阅读权管理。</li>
+  <li><strong>资质</strong>：需网络出版服务许可证或与持证方合作，App 备案，内容审核机制。</li>
+</ul>
+<p>这条路径下，产品最核心的差异化（液态玻璃、可玩互动、墨量）<strong>一条都不用丢</strong>——丢的只是风险源。</p>
+
+<!-- ==================== 8 待办 ==================== -->
+<h2><span class="num">08</span>开放问题与下一步</h2>
+
+<h3>已裁决，不再讨论</h3>
+<ul>
+  <li><code>UIT1</code> 三指下滑<strong>永久不做</strong>，改 <code>chromeToggle</code>（点击正文中央，唯一入口）。三指是 iOS 系统保留手势（轻扫撤销、双击缩放、辅助功能三指拖移），系统优先级高于 App；开启辅助功能后该入口会"看起来存在但按不动"，属无障碍缺陷。阅读器内仅保留 <code>EGG4</code> 一个手势。</li>
+  <li>枚举统一：<code>versionSwap</code> / <code>switchRipple</code> / <code>edgeBack</code> / <code>chromeToggle</code>。枚举名不得描述已被否决的旧行为。</li>
+  <li>字号定 <strong>19 / 20 / 21 三档</strong>；原「低于 18pt 自动切高对比」整条<strong>作废</strong>（三档全属大字，5.4:1 恒合规，不需要补丁）。</li>
+  <li>夜间对比度<strong>拆两档</strong>：柔和 5.4:1（默认）/ 高对比 12.1:1（可选）。</li>
+  <li><strong>阅读器锁竖屏</strong>（其他界面不受限）。横竖切换需全量重分页，代价大于收益。</li>
+  <li><strong>字体白名单 2 款</strong>：<code>PingFangSC-Regular</code> 按名称引用、不随包（Apple 字体许可不允许随包分发）；思源宋随包（OFL 许可）。降级链自动回退系统默认字体。</li>
+  <li><strong>年龄四态，UI 三态</strong>：<code>.adultConfirmed</code> / <code>.minorConfirmed</code> / <code>.ageUnresolved</code>（旧称 <code>provisionalMinor</code>）/ <code>.unverified</code>。
+  <br>界面三种说法：<strong>①「未成年人模式」</strong>　<strong>②「年龄信息未完善 · 未成年人保护已生效」</strong>（<code>.ageUnresolved</code>，因为它会宵禁，界面说的话必须和行为一致）　<strong>③「年龄信息未完善」</strong>（<code>.unverified</code>，<strong>按构建分版</strong>：研究版才追加「在线功能不可用」，发行版不写（台账 <strong>D-02</strong>；旧词「实验功能不可用」全案作废）。
+  <br>统一文案（与视觉规范、PRD 三处一字一致）：<strong>「年龄信息未完善 · 未成年人保护已生效，完善后即可继续阅读」</strong>。
+  <br><span style="color:var(--sub);font-size:13.5px">三处取舍：①用"未完善"不用"未确认"（前者指向用户可做的动作）；②<strong>不写"网络可用时将自动确认"</strong>——那是被动承诺不是动作路径，用户会干等；③必须保留"未成年人保护已生效"——它既是该态套宵禁的<strong>正当性来源</strong>，缺了这句，宵禁在用户眼里就成了一个没有解释的 bug。</span>
+  <br><span style="color:var(--sub);font-size:13.5px">命名原则：<strong>内部名描述事实，UI 名描述行为</strong>。内部叫"年龄未解析"（事实），界面说"保护已生效"（行为），各自准确。</span></li>
+  <li><strong>动作词单一叫法：只叫「导入」，不造别名。</strong>「导入」的禁令只在 <code>.minorConfirmed</code> 内成立（那里本就没有这个入口），其余状态是真实功能，应当照实叫。<strong>一致性不该靠改名实现，而该靠"同一个功能只有一种叫法"实现。</strong>
+  <br><code>.ageUnresolved</code> 与 <code>.unverified</code> <strong>必须保留导入入口</strong>——否则离线首启的成年用户会面对空书架且无法加书，App 完全不可用。闭环靠事后补审，不靠事前禁。</li>
+  <li><strong>状态矩阵是唯一真源，同时承载行为与文案。</strong>矩阵里直接写状态条主文案、caption、空态动作词；视图层禁止 <code>if state == .xxx</code> 各自拼文案。好处有三：禁词检查只需对矩阵做一次而不是每屏一次；矩阵改文案强制跟着改；三态状态条从矩阵派生。<strong>两套真源必漏一边</strong>——本轮按钮被撤掉后文案没跟上，就是活例子。</li>
+  <li><strong>两态都不给「完善」按钮，只给一行文字路径</strong>：<code>设置 › Apple 账户 › 个人信息 › App 年龄段</code>。理由两条——iOS 无法 deep-link 到该系统页（按钮点了无处可去），而若把按钮做成"触发一次分龄请求"，就等于我们已否决的"点一下就变普通模式"的解锁路标。<strong>点不到东西的按钮，比没有按钮更伤。</strong></li>
+  <li><strong>宵禁拦截页定稿文案</strong>：「年龄信息未完善 · 完善后即可继续使用」＋ 上述路径。<strong>不出现"联网"</strong>（属未成年人模式专项禁词）、<strong>不出现"退出／解锁／切换／跳过"、不放任何可点按钮</strong>——它是解释，不是出路。</li>
+  <li><strong>宵禁与导入的定稿口径（行业专家终审）</strong>：
+    <table style="margin:10px 0 6px;font-size:13px">
+      <tr><th style="width:30%">状态</th><th style="width:18%">宵禁</th><th style="width:20%">时长限制</th><th>本地导入</th></tr>
+      <tr><td><code>.adultConfirmed</code></td><td>不套</td><td>不套</td><td>允许</td></tr>
+      <tr><td><code>.minorConfirmed</code></td><td>套</td><td>套</td><td>禁</td></tr>
+      <tr><td><code>.ageUnresolved</code></td><td><strong>套</strong></td><td>不套</td><td>允许</td></tr>
+      <tr><td><code>.unverified</code></td><td>不套</td><td>不套</td><td>允许</td></tr>
+    </table>
+    <strong>宵禁只区分"确定未成年"与"未完成确认"两种处理，但两者不同：</strong><code>.minorConfirmed</code> 禁新增导入（家长筛完怕被下次绕过）、套宵禁与时长；<code>.ageUnresolved</code> 允许导入（无家长动作即无筛选可绕过）、<strong>套宵禁但不套时长</strong>。
+    <br><span style="color:var(--sub);font-size:13.5px">同一个判据推出两个方向：<strong>宵禁误伤可逆</strong>（当晚不能读、次日恢复、联网即解）故保留；<strong>禁导入与时长误伤不可逆</strong>（书没了、额度被吃掉）故豁免。</span>
+    <br><strong>且该状态不设"超期自动降级"</strong>：因为 <code>.ageUnresolved</code> 套宵禁而 <code>.unverified</code> 不套，降级即放宽——断网一周就能免宵禁，这是一条可等待的绕过路径。改为持续到获得确定答案：重试 3 次后收回"网络可达性"触发器，仅由<strong>冷启动 / 回前台 / 从系统设置返回</strong>触发；成功后<strong>当场解除并恢复阅读</strong>，不要求用户重新进入。</li>
+  <li><strong>宵禁拦截页是解释，不是出路</strong>：文案不得出现「退出／解锁／切换／跳过」，且不得有可点按钮。这条极容易被"提升体验"改成"去设置"按钮——那就是被删过两次的东西。</li>
+  <li>元数据与提审自查<strong>由产品经理兼管</strong>，行业专家复核；优先做截图与商店描述（一旦提交即固化、且历史版本可被抓取存档），后做界内文案。</li>
+  <li>阅读轨迹的切换版本时刻标记<strong>改中性小圆点</strong>，不用标红——标红是自曝，会被截图当缺陷证据。</li>
+</ul>
+
+<h3>术语规范（用户可见文案）</h3>
+<table>
+  <tr><th style="width:24%">原词</th><th style="width:34%">处置</th><th>理由</th></tr>
+  <tr><td>换源</td><td><strong>必须改</strong> → 切换版本 / 切换文件</td><td>"换源"读起来是"我们在操作多个来源"，属自认。这条<strong>没有豁免</strong></td></tr>
+  <tr><td>导入</td><td>主链路<strong>保留原词</strong>；未成年人模式界面内不出现</td><td>"导入自己的书"是核心定位。为避讳改掉主功能名，属过度合规</td></tr>
+  <tr><td>搜索</td><td>主链路<strong>保留原词</strong>；未成年人模式界面内不出现</td><td>该功能在未成年模式下不存在，无需替代词</td></tr>
+</table>
+<p style="font-size:13.5px;color:var(--sub)">代码标识符（<code>SourceEngine</code> 等）内部保留，但不得出现在用户可见字符串、日志、遥测、崩溃报告、导出文件里。</p>
+<p><strong>一条收窄的判据（避免禁词表被用过头）：</strong>同一个词，<strong>描述我方能力时禁，描述用户设备状态时不禁</strong>。<br>
+「联网」不能说"我们联网后会自动确认"，但可以说"设备离线"；「导入」不能说"导入我们的书库"，但可以说"导入你的文件"。禁词表要防的是<strong>留下"我们提供内容"的表述</strong>，不是让产品失去表达能力。</p>
+<p><strong>标识符的第三条边界（最容易漏）：不得出现描述"我们不做的事"的标识符。</strong><code>SourceMarket</code>／<code>RuleHub</code>／<code>SubscriptionFeed</code> 这类命名，即使从未被调用、只留了个空壳，也是"我们曾经计划做"的证据。描述现有能力的命名可以留，描述已移除能力的命名<strong>必须不存在</strong>——这是"能力本身不能存在"在命名空间里的版本。</p>
+
+<h3>交付决策台账与待定项</h3>
+<p>本册所有裁定以《交付决策台账》为唯一记录处（<code>交付决策台账-墨见InkSight.md</code>），台账逐条含原结论／新结论／理由／影响面／是否改判。<strong>改判本身不掉分，掉分的是改判后不留痕迹。</strong>本册只引用台账的结论与理由，不复制定稿字面；字面真源在各文档自身。</p>
+<table>
+  <tr><th style="width:16%">编号</th><th style="width:38%">事项</th><th>状态</th></tr>
+  <tr><td><strong>D-11 / D-06</strong></td><td>域名形态字符串禁令的两处例外：内部风险说明书举例所需的 <code>note → URL</code> 形态；iOS 26 系统 API 代码符号（<code>requestAgeRange</code>／<code>DeclaredAgeRange</code>）</td><td><strong>待客户确认。</strong>未确认前，禁令仅在 UI 可见层／原型／对外文档生效；判据是"给规则找一个明确不该适用的对象"——禁掉这两处，文档会因无法举例而失去可执行性</td></tr>
+  <tr><td><strong>D-12</strong></td><td>投诉邮箱真址</td><td><strong>待定。</strong>全册统一占位 <code>[TBD-CONTACT]</code>，发行前必须替换为可用邮箱（闸门 A9／A10 不可豁免）</td></tr>
+  <tr><td>D-13 / D-14</td><td>字阶 snap 与 token 命名映射</td><td><strong>已完成。</strong>字阶：原型 <code>font-size</code> 全部落在 DESIGN §1.7 字阶内——<strong>半像素（.5）值 0 处</strong>，字阶外字号仅演示屏 1 条且已按 DESIGN 反模式 8d 标注 <code>prototype-only</code>（产品屏一律 snap 至 13px）。token：规范名 <code>--ink-*</code> 为语义源、原型名作别名，一一对应，对照表见 DESIGN §1.7。实测数字见《原型验收记录》</td></tr>
+  <tr><td>D-16</td><td>五个 POC 实测</td><td><strong>已移期——这不是缺陷，是边界。</strong>本期边界是<strong>不写原生代码</strong>，而 POC 的被测对象（真机分页耗时、120Hz 帧率、20MB 首开内存、温升与掉电）在可点击原型里<strong>没有可测载体</strong>；没有载体却给实测结论，等于编造。实测安排随原生开发阶段一并交付（见 D-25）</td></tr>
+  <tr><td>D-18</td><td>最终产品形态</td><td>交客户：聚合书源（仅研究）／B 版收敛（可发行）</td></tr>
+  <tr><td><strong>D-19</strong></td><td>全局 TabBar 是否计入「一屏 1–2 处玻璃浮层」配额</td><td><strong>已裁决：不计入。</strong>全局 TabBar 属<strong>常驻导航容器</strong>，不是浮层；同一屏的<strong>浮层</strong>玻璃才计数。理由：若把 TabBar 计入，五个 Tab 页全部天然违规，这条规则就失去判别力——<strong>一条在任何对象上都触发的规则等于没有边界</strong>。据此书架页浮层玻璃＝2 处分段控件，合规。待回填 DESIGN 玻璃层级一节</td></tr>
+  <tr><td><strong>D-26</strong></td><td>穷举证明必须写全维度：补 <code>backdrop-filter</code> 一维</td><td><strong>已改判并已落地。</strong>原判据只扫 <code>transition-duration</code>／<code>animation-duration</code>，漏掉遮罩一维——<code>backdrop-filter</code> 不产生可采样时长，<strong>时长全 0 的元素仍可能带全屏模糊</strong>。补维后探针当场抓到 2 处违规：宵禁拦截页带 blur(6px) 且遮罩色 .9≠.94、书摘卡带 blur(44px)；修复后复测禁遮罩命中 0。<strong>穷举证明的价值在于穷举；漏掉一维，该维就是盲区，而"盲区"会被误读成"没问题"。</strong>详见《原型验收记录》</td></tr>
+  <tr><td><strong>D-38</strong></td><td>底部 sheet 四块的视觉归属</td><td><strong>已裁决并已同步 DESIGN／验收记录／台账。</strong><strong>本期不改</strong>：四块全部维持玻璃 L3，底部 sheet 走「高度 ≤ 屏高 75%（639pt）＋ 内部滚动」口径（实测 444／639／639／639，全部合规），单块 30% 面积兜底只适用屏内卡片类——新口径下"超限"这个触发条件根本不存在，<strong>没有超限就不启动材质变更</strong>。<strong>待评估项</strong>：<code>contactSheet</code>（法定告知文书）与 <code>srcSheet</code>（密集文字列表）压在半透明底＋模糊上的可读性关切，<strong>触发条件＝POC-2 真机判据产出之后</strong>；本轮不改材质。<strong>驳回「<code>ageSheet</code> 不进产品口径」</strong>：它是产品功能不是演示件（产品化后是设置页里的一个分组），按高度口径已合规，不需要例外——<strong>给规则找一个明确不该适用的对象，前提是它真的不该适用</strong></td></tr>
+</table>
+<p><strong>页面口径（本期锁定，不再增删）：以原型实测为准＝9 个 screen ＋ 5 个叠加层 ＋ 1 个拦截页。</strong>9 个 screen＝发现／浏览／书架／压力演示／阅读器／书源／墨量／主题／我；5 个叠加层＝「排版」「换一个版本」「年龄状态」「版权声明与投诉」四块面板 ＋「书摘卡」，均标注宿主页面、不占用页面编号；1 个拦截页＝宵禁拦截页，无宿主、全屏覆盖。<strong>年龄三态不各占一页</strong>——年龄状态是浮层、宵禁是拦截页，所以"每态一屏"不成立。</p>
+<p style="font-size:13.5px;color:var(--sub)"><strong>设计清单的 12 项与原型的 9 个 screen 不构成矛盾，混写成一个数字就是错。</strong>「12」是<strong>设计层</strong>要覆盖的页面与浮层项数，「9」是<strong>原型层</strong>实际落地的 screen 容器数——两者统计的对象根本不同，并列陈述才是事实；把它们相加、或取其中之一当作"页面总数"，都会得出一个没人对过的数。口径必须同时写明<strong>统计对象与来源</strong>，否则下一版会有人拿另一个数来对账，然后把对的那一个判成错的。本条以《原型验收记录》的 DOM 实测为准，原型快照变更即须重测。</p>
+
+<h3>版本与变更记录</h3>
+<p>本表替代对旧文件的"作废标注"——旧版本已不进交付目录，此处记录<strong>删了什么、为什么删</strong>，避免读者以为是遗漏。</p>
+<table>
+  <tr><th style="width:30%">已删除的能力</th><th>删除原因</th></tr>
+  <tr><td>跨源自动补章</td><td>"自动"二字是刑事定性开关；订阅的仍是未授权源，缩小范围只影响量刑不改定性</td></tr>
+  <tr><td>远端内容离线缓存／下载</td><td>缓存副本即复制权风险，比聚合搜索更重</td></tr>
+  <tr><td>会员与付费</td><td>触碰变现即放大"以营利为目的"认定</td></tr>
+  <tr><td>远端全文检索</td><td>索引库等同本地重建内容库；仅保留本地文件全文索引</td></tr>
+  <tr><td>三指下滑手势</td><td>iOS 系统保留手势，且"三指拖移"属辅助功能，冲突会让残障用户不可用</td></tr>
+  <tr><td>「低于 18pt 自动切高对比」</td><td>字号定 19/20/21，全属大字，该补丁无适用对象</td></tr>
+  <tr><td>阅读轨迹标红切换版本时刻</td><td>标红是自曝，会被截图当缺陷证据；改中性小圆点</td></tr>
+</table>
+
+<h3>本轮新增／更正的记录（2026-10-28）</h3>
+<p>上表记录"删了什么"，本小节记录"这一轮改了什么、依据是什么"——两者分开，是因为删除会留疤、改动会留因，混在一张表里就看不出哪些是本轮动的手。</p>
+<ol>
+  <li><strong>性能红线表四处数值更正、一处新增</strong>（依据 D-01、D-17，源为 PRD 与技术约束清单）：连续阅读 30 分钟掉电由 ≤8% 收紧为 <strong>≤5%</strong>、温升由 ≤5℃ 收紧为 <strong>≤4℃（25℃ 室温）</strong>；首屏可交互由 ≤400ms 改为 <strong>≤1.2s</strong>（两者相差 3 倍，取可验的那个），首屏内容完整 ≤900ms <strong>降为观测项</strong>；新增<strong>单块玻璃 ≤ 屏面积 30%（＝100,451pt²，基准视口 393×852＝334,836pt²；上限按屏面积比例计算，不同机型以实际屏面积为基准）</strong>，<strong>超限处置按 D-29 分两路</strong>（屏内卡片类 → 降一档材质或改纯色；底部 sheet 类 → 限高 ＋ 内部滚动）。理由：摘要可以更严，不该更松。</li>
+  <li><strong>用词统一为「在线功能不可用」</strong>（依据 D-02）：旧词「实验功能不可用」全案作废——"实验"过泛，且在<strong>发行版</strong>里属反向虚假陈述（能力本就不存在，声明一个不存在的限制＝声明不存在的内容）。</li>
+  <li><strong>降级申报改为可兑现的 CI 门禁</strong>：不再写"构建失败"这类无法兑现的承诺，改为 CI 单测遍历 <code>Degradation.Kind</code> 全枚举校验、<strong>缺一行即单测失败、CI 挡合并</strong>；配套《降级申报清单-墨见InkSight.md》登记 10 类降级与 3 条明确禁止的降级。</li>
+  <li><strong>第 8 章台账行状态回填与页面口径更正，并落盘《原型验收记录 v3》</strong>：D-13／D-14 改「已完成」、D-16 改「已移期」（<strong>这不是缺陷，是边界</strong>），新增 D-19（TabBar 不计一屏玻璃配额）与 D-26（穷举证明须补 <code>backdrop-filter</code> 一维）；页面口径由"12 screen ＋ 4 叠加层"更正为<strong>以原型实测为准的 9 screen ＋ 5 叠加层 ＋ 1 拦截页</strong>，并区分"设计 12 项 vs 原型 9 页"两个统计对象；验收记录锁定原型快照 MD5 <code>6e98c93c…</code>／176,261 字节／3,405 行，<strong>本档为台账 D-40 重锁档 ＝ 工作副本实测档（原型已定版，两者同值）；冻结声明见台账 D-49。</strong> <strong>快照链（台账 D-50 ④：只记台账重锁过的档）</strong>：<code>8b45cb17…</code> → <code>85e65b5e…</code> → <code>aa815e03…</code> → <code>1233b65b…</code> → <code>6e2b45cc…</code> → <code>880e83ea…</code> → <strong><code>230d180b…</code>（☼ 档，<strong>已作废</strong>：D-49 图标第一轮，实为太阳／亮度符号，非齿轮；已被 <code>6e98c93c…</code> 的 Feather 标准齿轮取代）</strong> → <strong><code>6e98c93c…</code>（台账锁定档 ＝ 最终）</strong>。<strong>总判「通过」</strong>（24 项逐项验收全部通过）。玻璃面积一条已按 D-29 口径<strong>改判为通过</strong>——底部 sheet 实测高度 444／639／639／639，全部 ≤639pt（屏高 75.00%），内部滚动生效；旧判"4 处超限·不通过"的结论保留在《原型验收记录》第四节第 2 条里作为改判留痕。<strong>按 D-32，全册判定词统一为「通过／不通过」二元词，适用条件另列</strong>——本节此前那句三元式判定表述一并作废。</li>
+  <li><strong>行动作名全量统一为「换一个版本」（D-08 回填补齐，D-44）</strong>：D-08 当年的影响面<strong>只写了 DESIGN</strong>，本轮全目录实测发现 PRD 3 处 ＋ 降级清单 1 处 ＋ 埋点表 1 处 ＋ 行业合规与风险意见书 1 处旧名残留，已全部改正；<strong>原型与总册 0 命中，无需改</strong>。理由：<strong>降级态下用户实际看到的字，必须与正常态按钮同字</strong>——故障时冒出一个陌生说法，用户就不知道该点什么，修复动作本身被措辞挡住。<strong><code>DESIGN-archive/</code> 里 12 份过程稿的旧名保留是正确的</strong>：它们全部标了「已作废，不得引用」，<strong>留痕价值高于统一价值</strong>，改它们等于把作废稿改得像现行稿。</li>
+  <li><strong>同一动作在原型内只有一个名字（D-46）</strong>：④ 页工具条第 4 项按钮原标「换文件」，而同一动作的 toast 文案写「换一个版本」——<strong>原型内部一个动作两个名字，违反 D-08「同一个功能只有一种叫法」，且出现在交付物本体上</strong>。已改：按钮标签 →「换一个版本」，toast 补齐第 5 项「· 排版」（原 toast 只列 4 项，真实工具条 5 项）。另「更多菜单」一词作废——原型 ④ 页顶栏那颗按钮的 <code>aria-label</code> 是「阅读设置」、行为是 <code>openSheet('setSheet')</code>，<strong>它不是「更多」按钮，原型没有任何「菜单」形态</strong>，正确称谓是「<strong>阅读设置按钮</strong>」。改后原型实测：<code>换文件</code> 0 命中、<code>换一个版本</code> 15 命中，探针全维度逐项一致。</li>
+  <li><strong>行动作名的适用边界（D-47）</strong>：D-08「统一为『换一个版本』」管的是<strong>动作控件上的那个词</strong>——原型 15 处「换一个版本」全在按钮标签、面板标题、故事板条目、toast 与注释上；另有 3 处描述性副标题写「另一个版本」（名词，指那个版本，非动作名），<strong>不改</strong>——中文里「另一个版本」是名词短语、「换一个版本」是动宾短语，改成后者会得到病句。<strong>规则一旦扩到禁止同义改写，就会被逼着写出病句；规则一旦开始制造语法错误，执行者只会绕过它，而不是遵守它。</strong></li>
+  <li><strong>字阶计数的三个统计对象写明（D-48）</strong>：style 块内 <code>font-size:</code> 声明 ＝ <strong>136</strong> 条（其中 px 字面 <strong>133</strong> ＋ <code>var(--rd-size,20px)</code>×2 ＋ <code>.86em</code>×1）；<strong>UI 声明内的 px 字面奇数整数 ＝ 107</strong>（11×50 ＋ 13×38 ＋ 15×12 ＋ 17×4 ＋ 19×3）；<strong>全文件</strong> px 字面匹配 ＝ 136、奇数整数 ＝ 108——<strong>多出的 1 条 <code>font-size:13px</code> 位于 console 自检日志，不是 UI 声明</strong>。台账与本文档统一采用 <strong>UI 口径 107</strong>。<strong>两个不同源的数恰好都等于 136，是最容易出事的陷阱</strong>——真正的差异藏在奇数整数那个数上。<strong>另：验收记录第 16 项判据列的字阶表漏了 19／20／21 三档，已补全为 DESIGN §1.2 的 11 档</strong>（10／11／13／15／17／19／20／21／22／28／34）——<strong>判据里的字阶表漏一档，就会指导一次把正常字号改坏的修改。</strong></li>
+  <li><strong>图形是对外承诺（D-49）</strong>：④ 页顶栏 <code>#readerMore</code> 原用「⋯」图形（iOS 上通用溢出菜单的强约定），而其语义是「阅读设置」、行为是打开阅读设置浮层——<strong>原型里根本不存在任何菜单形态</strong>。D-46 已把术语纠正为「阅读设置按钮」，<strong>图形却仍在宣称自己是一张菜单</strong>。已改为齿轮图形并加注释写明理由。<strong>语义与图形不符时，该改的是图形。</strong>　<strong>两轮修正</strong>：第一版画成「中心圆 ＋ 8 根放射短线」，实际渲染出来是标准的 <strong>☼ 太阳／亮度符号</strong>（iOS 亮度滑块就是这个形），<strong>被前端工程师放大 220px 目视复核抓出</strong>；第二版改用 Feather「settings」标准齿轮（八齿轮廓 ＋ 中心圆），并把<strong>全部 16 个图标渲染成 72px 网格图逐一目视确认</strong>（其余 15 个语义全部匹配）。<strong>教训：纯数值探针抓不到图形语义错</strong>——「⋯ 换成某个 SVG」在机器眼里同样合规，<strong>只有把图渲染出来看，才知道它说的是不是它自称的东西</strong>；<strong>图形语义必须目视复核——「我以为我画的是齿轮」不是证据。</strong>最终快照重锁为 <code>6e98c93c…</code>（176,261 字节／3,405 行）。</li>
+</ol>
+
+<h3>已否决的方案（留档，避免重提）</h3>
+<p><strong>被否决的方案要留理由，被废弃的措辞要清空</strong>——两者性质不同，混在一起处理会一边重犯、一边留痕。</p>
+<p style="font-size:13.5px;color:var(--sub)"><strong>这份清单必须包含我们自己的错误，否则它会退化为一个只指向别人的工具。</strong>三项都是我（产品侧）的误判：合并两个结论、允许 12pt、写"全本"承诺。把它们留在清单里，是让下一个人知道<strong>这不是别人的问题</strong>——只列他人的错误，下一次就没人会主动往里写。</p>
+<table>
+  <tr><th style="width:30%">方案</th><th>否决理由</th></tr>
+  <tr><td>三指下滑呼出工具栏</td><td>iOS 系统保留手势（轻扫撤销/双击缩放/三指拖移）；开辅助功能后被系统抢占，入口"看起来存在但按不动"，而这类用户最需要可达性。未来若需第二入口，选<strong>双击正文中央</strong>，不得再议三指</td></tr>
+  <tr><td>联网后自动重试并自动解除限制</td><td>家长主动开启的模式会被系统返回的成年答案解除，全程无家长验证——可等待的绕过路径</td></tr>
+  <tr><td>超期 7 天自动降级为不设限状态</td><td>降级即放宽：断网一周即可免宵禁。与上一条同类</td></tr>
+  <tr><td>开放 12pt 及更小字号</td><td>会迫使"自动切高对比"成为第 4 个主题变体，校验组合从 3×N 升到 4×N。不是多一档字号，是多一整套组合</td></tr>
+  <tr><td>允许用户换任意系统字体</td><td>全角标点 advance 跨字体可差 0.05em，零位移在物理上不成立。字体收窄为名称白名单（2 款）</td></tr>
+  <tr><td>专注模式 6 秒自动恢复工具栏</td><td>用户专注时工具栏自己弹出来是最粗暴的打断；且引入定时器与温控指标冲突</td></tr>
+</table>
+
+<h3>需要你在进入开发前拍板的三件事</h3>
+<ol>
+  <li><strong>要不要走 B 版（可发行路径）</strong>——这决定是继续做研究原型，还是转向真产品。二者技术栈可复用 80%，但产品边界完全不同。</li>
+  <li><strong>首发内容策略</strong>——纯本地导入（零风险、零内容）、还是正版书城对接（需资质与版权成本）。</li>
+  <li><strong>是否投入 3 人日做仿真翻页</strong>——它是体验天花板，也是最可能拖垮帧率的项。建议先做 3 天 POC 再决定。</li>
+</ol>
+
+<div class="divider"></div>
+
+<p style="font-size:13.5px;color:var(--sub)">
+  配套文件均在同目录：<code>PRD-墨见InkSight.md</code>（v1.9）、<code>research-competitor-report.md</code>、<code>行业合规与风险意见书-墨见InkSight.md</code>（v1.1）、<code>技术约束清单-墨见InkSight.md</code>、<code>埋点需求表-墨见InkSight.md</code>（v1.3）、<code>禁词与文案合规检查表-墨见InkSight.md</code>、<code>元数据与提审合规清单-墨见InkSight.md</code>。可点击原型见 <code>prototype/index.html</code>。
+</p>
+
+<div class="foot">
+  软件交付特战队 · 交付总监 齐活林 汇编｜参与成员：查有据（调研）、顾纵深（行业合规）、许清楚（需求）、简明理（产品）、画意浓（视觉）、高见远（架构）、端景明（原型）<br>
+  本册为产品研究与技术预研成果，<strong>不构成可用于实际发行的产品方案</strong>。
+</div>
+
+</div>
+</body>
+</html>
