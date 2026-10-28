@@ -665,6 +665,11 @@
 **随附交付登记（D-53 执行 · 开发包 #39）**：`ReaderTOCSheet` 目录顶部新增「退 5 章」文字按钮（44pt 触控目标）＋ `onBackFive` 回调；`ReaderSurface` 接线（`max(0, chapterID - 5)` 下界收敛、`jumpToChapter`、toast「已退 5 章」）；`GestureVisibilityContractTests`（5）＋ 修复 `HighlightsStoreTests.testAddAndRead` 时序脆弱。**测试**：InkSightApp **354 / 0**（349 ＋ 5），InkSightCore 41/0，iOS Simulator SDK Build complete。**落地（FR-036，AC：全模块不得存在只能手势触达的功能）**：目录面板顶部工具条新增「**退 5 章**」文字按钮——点击上跳 5 章落章首（`jumpToChapter(max(0, chapterID-5))`，下界收敛到第 0 章不越界）并提示「已退 5 章」（2s 自动消失的 toast）。按钮为 **44pt 触控目标**、`accessibilityLabel("后退 5 章")`。这是**可见入口而非手势**——与本项目其他手势（UIT1 中央点按、EGG4 折角、边缘侧滑）都已有可见替代的口径一致。**修一处既有测试时序脆弱（本轮发现，非本包引入）**：`HighlightsStoreTests.testAddAndRead` 用默认 `createdAt = Date()` 连续创建两条划线——**同一毫秒内时间戳相等 → 排序不稳定 → 偶发失败**（实测 6 连跑约 1/3 概率失败）。修复：测试显式传不同 `createdAt`，**不依赖系统时钟精度**。这条在台账记录，因为它暴露了一个普遍模式：**凡断言"按时间倒序"的测试，都必须显式注入时间戳**（本仓库 `BookmarkTests` 等已如此，`HighlightsStoreTests` 是漏网的）。**诚实空态（未做/待后续）**：FR-036 的 AC 是"全模块不得存在只能手势触达的功能"——**这是系统性验收**，本包只补了「退 5 章」这一个明确的 FR-036 项；其余手势（边缘侧滑退出、目录页顶部工具条的其他按钮）是否都已有可见替代，**未做全模块逐手势盘点**（待后续专项）；toast 用 `Task.sleep(2s)` 控制消失，**真机手感待校准**。
 
 ---
+### D-90　FR-007 元数据解析落地（txt 文件名 / epub OPF → 作者，导入即生成）
+
+**随附交付登记（D-53 执行 · 开发包 #40）**：新增 `BookMetadata`／`MetadataParser`（txt 文件名推断 ＋ epub OPF 解析）＋ `MetadataParserTests`（10）；`BookShelfItem` 增加 `author` 字段；两个 `importLocalBook` 导入时自动解析作者；`BookRow` 显示作者。**测试**：InkSightApp **367 / 0**（354 ＋ 13），InkSightCore 41/0，iOS Simulator SDK Build complete。**落地（FR-007）**：①**txt 文件名推断**——`作者-书名.txt` → 作者/书名（去「著」后缀）；`书名 by 作者.txt` → 英文命名；纯书名不误拆。②**epub OPF 解析**——轻量 XML 扫描 `dc:title`／`dc:creator`／封面数据透传（不引 XMLParser 依赖到纯逻辑层，OPF 结构固定）；无 `dc:title` 返回空串由调用方回落文件名。③**导入即生成**——`importLocalBook` 自动解析并把 `author` 存入书架项；`BookRow` 显示「作者 · N 章」。④**设计边界**：**不从正文内容猜书名/作者**（那是内容分析不是元数据解析）；epub 的封面**只透传字节不解析格式**（解码留给渲染层）。**测试中的一处修正（留痕）**：初版集成测试写 `BookShelfItem` 做 Codable round-trip——但它**不是 Codable**（书架项本身不落盘，进度/元数据分别存），修正为验证 `author` 字段直接保留在书架项上。**诚实空态（未做/待后续）**：「**可手改**」的 UI 未做（作者编辑入口待后续——元数据在书架项上，但无编辑界面）；epub 的**容器解包**（从 `.epub` zip 里取 OPF 文件与封面）未实现（`parseOPF` 只吃 OPF 文本，取 OPF 需 zip 解压，待后续）；封面图片**未在书架卡上渲染**（`coverImageData` 字段已备，渲染待后续）。
+
+---
 ## 3. 状态索引
 
 ### 3.1 仍开放（客户后续再定）

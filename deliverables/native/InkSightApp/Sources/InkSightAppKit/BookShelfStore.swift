@@ -15,6 +15,8 @@ public enum BookSource: String, Codable, Sendable {
 public struct BookShelfItem: Equatable, Sendable {
     public let bookID: String
     public let title: String
+    /// FR-007 元数据：作者（导入时从文件名/OPF 解析，可手改）。
+    public let author: String?
     public let source: BookSource
     public let importDate: Date
     public let chapterCount: Int
@@ -24,12 +26,14 @@ public struct BookShelfItem: Equatable, Sendable {
     public let chapters: [ChapterAnchor]
     public var lastReadAnchor: ReadingProgress?
 
-    public init(bookID: String, title: String, source: BookSource,
+    public init(bookID: String, title: String, author: String? = nil,
+                source: BookSource,
                 importDate: Date, chapterCount: Int,
                 fileURL: URL? = nil, chapters: [ChapterAnchor] = [],
                 lastReadAnchor: ReadingProgress? = nil) {
         self.bookID = bookID
         self.title = title
+        self.author = author
         self.source = source
         self.importDate = importDate
         self.chapterCount = chapterCount
@@ -61,10 +65,12 @@ public final class BookShelfStore: @unchecked Sendable {
     @discardableResult
     public func importLocalBook(bookID: String, title: String, fileData: Data) -> BookShelfItem {
         let result = ChapterScanner.scan(fileData)
-        let displayTitle = title.isEmpty ? (result.chapters.first?.title ?? "未命名书籍") : title
+        let metadata = MetadataParser.parseFromFileName(title)
+        let displayTitle = title.isEmpty ? (result.chapters.first?.title ?? "未命名书籍") : metadata.title
         let item = BookShelfItem(
             bookID: bookID,
             title: displayTitle,
+            author: metadata.author,
             source: .localImport,
             importDate: Date(),
             chapterCount: result.chapters.count,
@@ -83,10 +89,12 @@ public final class BookShelfStore: @unchecked Sendable {
     public func importLocalBook(bookID: String, title: String, fileURL: URL) throws -> BookShelfItem {
         let data = try Data(contentsOf: fileURL)
         let result = ChapterScanner.scan(data)
-        let displayTitle = title.isEmpty ? (result.chapters.first?.title ?? "未命名书籍") : title
+        let metadata = MetadataParser.parseFromFileName(fileURL.lastPathComponent)
+        let displayTitle = title.isEmpty ? (result.chapters.first?.title ?? "未命名书籍") : metadata.title
         let item = BookShelfItem(
             bookID: bookID,
             title: displayTitle,
+            author: metadata.author,
             source: .localImport,
             importDate: Date(),
             chapterCount: result.chapters.count,

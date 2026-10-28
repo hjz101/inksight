@@ -359,8 +359,14 @@ private struct BookRow: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(item.title).font(.subheadline.weight(.medium))
-                    Text("\(item.chapterCount) 章 · \(item.source == .localImport ? "本地导入" : "在线")")
-                        .font(.caption).foregroundStyle(.secondary)
+                    // FR-007：导入即显示作者（无作者时不显示这一行，诚实空态）
+                    if let author = item.author, !author.isEmpty {
+                        Text("\(author) · \(item.chapterCount) 章")
+                            .font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        Text("\(item.chapterCount) 章 · \(item.source == .localImport ? "本地导入" : "在线")")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
                 }
                 Spacer()
             }
