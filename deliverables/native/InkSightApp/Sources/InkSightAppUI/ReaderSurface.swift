@@ -84,12 +84,18 @@ public struct ReaderSurfaceView: View {
         // `if let live = session.engine { ... }` 分支**内部**——`engine == nil` 时该分支不渲染，
         // 于是 `prepareSession()`（负责 `session.adopt(engine)`，把注入引擎装进会话）
         // 永不执行，空态成了死锁，注入的引擎永远进不来。移到外层 ZStack 即修复。
-        .onAppear { prepareSession() }
+        .onAppear {
+            prepareSession()
+            // **FR-037：仅阅读器锁竖屏**（其他界面不受限）——进入即锁，退出即解。
+            OrientationController.shared.lockReaderToPortrait()
+        }
         .onDisappear {
             recordProgressIfPossible()
             // **会话结束即释放内存页**（合规四禁令第 4 条）。
             // 此前只有签名变化才 invalidate，退出阅读器从不释放——禁令没有调用方。
             session.endSession()
+            // **FR-037：退出阅读器解锁方向**（恢复其他界面可旋转）。
+            OrientationController.shared.unlockAfterReader()
         }
     }
 

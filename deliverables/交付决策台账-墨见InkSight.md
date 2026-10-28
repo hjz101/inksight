@@ -583,6 +583,11 @@
 **随附交付登记（D-53 执行 · 开发包 #23）**：新增 `CredentialScanner`（5 类凭据：cookie/token/authorization/password/accountCredential）＋ `CredentialScannerTests`（10 个）；`ShelfScreen.handleImport` 在导入前扫描、命中即拒绝并展示原因。**测试**：InkSightApp **204 / 0**（194 ＋ 10），InkSightCore 41/0，iOS Simulator SDK Build complete。**落地（PRD FR-034 原文逐条）**：①**导入时静态扫描** Cookie／Token／Authorization／账密字段（大小写不敏感）②**命中即拒绝导入并说明原因**——拒绝提示展示在图书架页顶部（红色 caption），不生成任何条目 ③**凭据不落盘、不参与同步与日志**——`CredentialScanner` 只做内存判定，`ScanResult` **只报类别、不含凭据原文**（有专门测试 `testRejectionMessageDoesNotEchoCredential` 断言拒绝原因不回显 secret）④非 UTF-8 内容（GBK/二进制）用 Latin1 兜底扫描，避免漏检（有测试）。**设计取舍**：`ScanResult` 刻意不持有命中行原文——PRD 要求凭据不进日志，若结构里带着原文，将来接入日志/遥测时极易泄漏；只留 `Kind` 是类型层的防线。**诚实空态（未做/待后续）**：扫描为**字段名启发式**（不解析规则文件结构），存在两个已知边界——过于宽泛的文本（如小说正文里出现 "token:" 字样）会误拦，与漏检风险权衡取严（PRD 判据「拿不准按"是"处理」）；书源规则文件的专用结构校验（JSON/JS 规则字段级）未做，当前是通用文本扫描。
 
 ---
+### D-74　FR-037 阅读器锁竖屏落地（仅阅读器锁，其他界面不受限）
+
+**随附交付登记（D-53 执行 · 开发包 #24）**：新增 `OrientationController`（状态＋通知，纯逻辑可测）＋ `OrientationControllerTests`（5 个）；`ReaderSurfaceView.onAppear/onDisappear` 接入锁/解锁；`Info.plist` 与 `project.yml` 声明三方向（竖屏＋左右横屏，其他界面可转）。**测试**：InkSightApp **209 / 0**（204 ＋ 5），InkSightCore 41/0。**落地（PRD FR-037 原文逐条）**：①**仅阅读器锁竖屏**——`onAppear` 锁、`onDisappear` 解；其他界面不受限（Info.plist 已声明三方向）②掩码语义与 UIKit 一致（portrait=2，all=2|8|16，测试断言）③切换用 `setNeedsUpdateOfSupportedInterfaceOrientations()`——状态变化发 `.readerOrientationLockChanged` 通知，由 UI 层宿主控制器调用（Kit 层不依赖 UIKit，保持纯逻辑）④重复锁定同一状态不重复通知（幂等，测试断言）。**设计取舍**：方向掩码用 `UInt` 而非 UIKit 枚举——Kit 层不引入 UIKit 依赖；数值与 UIKit 语义一致并测试锁定。**已知限制（不掩饰）**：真正的 `supportedInterfaceOrientationsFor` 覆写需 iOS App 宿主控制器（SwiftUI `App` 生命周期下需 `UIApplicationDelegateAdaptor` 或自定义 hosting controller 才完全生效）——本包完成状态控制与生命周期接线，**宿主控制器的 UIKit 适配层未做**（待真机工程收尾）；模拟器/真机验证待后续。
+
+---
 ## 3. 状态索引
 
 ### 3.1 仍开放（客户后续再定）
