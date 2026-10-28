@@ -379,15 +379,14 @@ struct MeScreen: View {
     @State private var showBackup = false
     /// 主题状态（FR-010）：皮肤 + 夜航对比档 + 切换模式。
     @State private var themeState: ThemeState = ThemeStore().load()
-    /// FR-032 ③：监护验证码（未成年人模式不可自行退出）。
-    @State private var guardian = GuardianVerification()
+    /// FR-032 ③④：监护会话（**跨页面共享**；此前是 @State，视图重建会重载并重置锁定计数）。
+    @StateObject private var guardianSession = GuardianSession.shared
     /// FR-032 ③：验证输入与反馈。
     @State private var guardianInput = ""
     @State private var guardianMessage = ""
     /// FR-032 ④：家长内容确认（进入时列出书架 N 本）。
     @State private var parentalDecision = ParentalContentDecision()
-    /// FR-032 ④：修改隐藏清单所需的监护凭据（验证成功后签发，5 分钟有效）。
-    @State private var guardianProof: GuardianProof?
+    /// FR-032 ④：修改隐藏清单的验证输入（凭据本身在 `guardianSession` 里共享）。
     @State private var hiddenAuthInput = ""
     @State private var hiddenAuthMessage = ""
 
@@ -723,13 +722,12 @@ struct MeScreen: View {
             }
             // FR-032 ④：隐藏清单修改**必须经监护验证**（类型层强制：setHidden 需 GuardianProof）
             LabeledContent("家长隐藏", value: "\(parentalDecision.hiddenBookIDs.count) 本")
-            if guardianProof == nil {
+            if !guardianSession.hasValidProof {
                 SecureField("输入监护验证码以修改隐藏清单", text: $hiddenAuthInput)
                 Button("验证") {
-                    if let proof = guardian.verifyForProof(hiddenAuthInput) {
-                        guardianProof = proof
+                    if guardianSession.verifyAndAuthorize(hiddenAuthInput) != nil {
                         hiddenAuthInput = ""
-                        hiddenAuthMessage = "验证通过（5 分钟内有效）。"
+                        hiddenAuthMessage = "验证通过（5 分钟内有效，跨页面共享）。"
                     } else {
                         hiddenAuthMessage = "验证码不正确或已锁定。"
                     }
@@ -744,7 +742,7 @@ struct MeScreen: View {
                         set: { on in
                             // 无凭据时 setHidden 返回 false（类型层拒绝修改）
                             let changed = parentalDecision.setHidden(item.bookID, hidden: on,
-                                                                    authorizedBy: guardianProof)
+                                                                    authorizedBy: guardianSession.currentProof())
                             hiddenAuthMessage = changed ? "" : "修改被拒绝：需监护验证"
                         }
                     ))
@@ -761,17 +759,17 @@ struct MeScreen: View {
 
         Section {
             // ③ 监护验证：未成年模式不可自行退出
-            if guardian.isConfigured {
+            if guardianSession.verification.isConfigured {
                 SecureField("监护验证码", text: $guardianInput)
                 Button("验证并退出未成年人模式") {
-                    switch guardian.verify(guardianInput) {
+                    switch guardianSession.verification.verify(guardianInput) {
                     case .success:
                         // FR-032 ⑥：验证通过 → **自动合并**模式内进度回主进度
                         // （时间戳为准、两份都保留、不弹选择框），成功后清空模式内副本。
                         do {
                             let outcome = try MinorModeExitCoordinator.exit(
                                 code: guardianInput,
-                                verification: guardian,
+                                verification: guardianSession.verification,
                                 minorStore: MinorModeProgressStore(),
                                 mainStore: ReadingProgressStore())
                             if let report = outcome.report {
@@ -801,7 +799,7 @@ struct MeScreen: View {
                 Button("设置监护验证码") {
                     do {
                         // FR-032 ③：明文立即哈希后丢弃，只落盘加盐迭代摘要（重启后仍有效）。
-                        try guardian.setCode(guardianInput)
+                        try guardianSession.verification.setCode(guardianInput)
                         guardianInput = ""
                         guardianMessage = "验证码已设置并保存（仅存加盐摘要，不留明文）。"
                     } catch {
