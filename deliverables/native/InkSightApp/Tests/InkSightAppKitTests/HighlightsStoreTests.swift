@@ -18,15 +18,21 @@ final class HighlightsStoreTests: XCTestCase {
         if let tempDir { try? FileManager.default.removeItem(at: tempDir) }
     }
 
-    private func makeHighlight(offset: Int, note: String = "", tags: [String] = []) -> Highlight {
+    private func makeHighlight(offset: Int, note: String = "", tags: [String] = [],
+                               createdAt: Date = Date(timeIntervalSince1970: 1000)) -> Highlight {
         Highlight(bookID: "b1", chapterID: 1, charOffset: offset, charLength: 4,
-                  fingerprint: 0xABCD, selectedText: "选中的句子", note: note, tags: tags)
+                  fingerprint: 0xABCD, selectedText: "选中的句子", note: note, tags: tags,
+                  createdAt: createdAt)
     }
 
     /// 添加后可读回；按创建时间倒序。
+    ///
+    /// **时序脆弱性修复（D-89，本批发现）**：`createdAt` 默认 `Date()`——同一毫秒内
+    /// 连续创建两条会得到**相同时间戳**，排序不稳定，偶发失败。
+    /// 测试须**显式传不同时间**，不依赖系统时钟精度。
     func testAddAndRead() {
-        store.add(makeHighlight(offset: 10))
-        store.add(makeHighlight(offset: 20))
+        store.add(makeHighlight(offset: 10, createdAt: Date(timeIntervalSince1970: 1000)))
+        store.add(makeHighlight(offset: 20, createdAt: Date(timeIntervalSince1970: 2000)))
         XCTAssertEqual(store.allHighlights().count, 2)
         XCTAssertEqual(store.allHighlights().first?.charOffset, 20, "按创建时间倒序")
     }

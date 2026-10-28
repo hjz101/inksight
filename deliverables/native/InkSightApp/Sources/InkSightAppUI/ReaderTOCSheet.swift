@@ -16,6 +16,8 @@ struct ReaderTOCSheet: View {
     let currentChapter: Int
     /// 选中某章（跳转）。
     var onSelect: (Int) -> Void = { _ in }
+    /// FR-036「退 5 章」：上跳 5 章落章首（点击后回调，由阅读器实现跳转与提示）。
+    var onBackFive: () -> Void = {}
     /// 关闭。
     var onClose: () -> Void = {}
 
@@ -37,6 +39,17 @@ struct ReaderTOCSheet: View {
 
                 HStack {
                     Text("目录").font(.headline)
+                    // FR-036：**手势必须有可见入口**——「退 5 章」文字按钮（44pt 触控目标），
+                    // 点击上跳 5 章落章首并提示「已退 5 章」。
+                    // AC：全模块不得存在只能手势触达的功能（本按钮是唯一入口，非辅助）。
+                    Button(action: onBackFive) {
+                        Text("退 5 章")
+                            .font(.system(size: 15, weight: .medium))
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("后退 5 章")
                     Spacer()
                     Button(action: onClose) {
                         Image(systemName: "xmark")

@@ -660,6 +660,11 @@
 **随附交付登记（D-53 执行 · 开发包 #38）**：`BookShelfStore.abandon(bookID:...)` 弃读方法（含关联清理）；四个 store 补齐清理方法（`ReadingProgressStore.clear(bookID:)`／`BookmarksStore.removeAll(bookID:)`／`HighlightsStore.removeAll(bookID:)`／`VersionLabelStore.remove(bookID:)`）；`BookRow` 加 `contextMenu` 弃读入口 ＋ `ShelfScreen.abandonBook` ＋ `BookShelfAbandonTests`（5）。**测试**：InkSightApp **349 / 0**（344 ＋ 5），InkSightCore 41/0，iOS Simulator SDK Build complete。**落地（FR-035）**：①**弃读即从书架移除**（`items.remove`），并**必须清理关联数据**——阅读进度／书签／划线／本地检索索引／版本标签，**否则就是"幽灵书"（条目没了、数据还在）**；`abandon` 在锁外调用各 store 清理，避免多锁死锁。②**UI 用 `contextMenu` 长按**：书架是 `ScrollView`（非 `List`），无法用滑动删除，长按菜单是自然形态；破坏性动词「弃读」＋ `trash` 图标＋ `role: .destructive`＋无障碍动作。③测试覆盖：移除本身、无此书返回 false、**关联数据全清**、最后一本弃读后书架空（诚实空态）、**逐书隔离**（弃 A 不影响 B 的进度）。**诚实交互取舍**：弃读**不弹确认框**——「弃读」是破坏性动词，语义已明；数据不可恢复性在 README 与台账声明。**已知限制（如实登记）**：弃读**未物理删除文件**（`fileURL` 指向的原始 txt 仍在沙箱/导入源，仅从书架移除登记）——这是刻意取舍（文件可能来自外部导入源，删除用户原始文件越权）；`abandon` 的清理只覆盖**本 App 数据**，外部文件生命周期不归我们管。
 
 ---
+### D-89　FR-036 手势可见入口落地（「退 5 章」按钮）＋ 修一处既有测试时序脆弱
+
+**随附交付登记（D-53 执行 · 开发包 #39）**：`ReaderTOCSheet` 目录顶部新增「退 5 章」文字按钮（44pt 触控目标）＋ `onBackFive` 回调；`ReaderSurface` 接线（`max(0, chapterID - 5)` 下界收敛、`jumpToChapter`、toast「已退 5 章」）；`GestureVisibilityContractTests`（5）＋ 修复 `HighlightsStoreTests.testAddAndRead` 时序脆弱。**测试**：InkSightApp **354 / 0**（349 ＋ 5），InkSightCore 41/0，iOS Simulator SDK Build complete。**落地（FR-036，AC：全模块不得存在只能手势触达的功能）**：目录面板顶部工具条新增「**退 5 章**」文字按钮——点击上跳 5 章落章首（`jumpToChapter(max(0, chapterID-5))`，下界收敛到第 0 章不越界）并提示「已退 5 章」（2s 自动消失的 toast）。按钮为 **44pt 触控目标**、`accessibilityLabel("后退 5 章")`。这是**可见入口而非手势**——与本项目其他手势（UIT1 中央点按、EGG4 折角、边缘侧滑）都已有可见替代的口径一致。**修一处既有测试时序脆弱（本轮发现，非本包引入）**：`HighlightsStoreTests.testAddAndRead` 用默认 `createdAt = Date()` 连续创建两条划线——**同一毫秒内时间戳相等 → 排序不稳定 → 偶发失败**（实测 6 连跑约 1/3 概率失败）。修复：测试显式传不同 `createdAt`，**不依赖系统时钟精度**。这条在台账记录，因为它暴露了一个普遍模式：**凡断言"按时间倒序"的测试，都必须显式注入时间戳**（本仓库 `BookmarkTests` 等已如此，`HighlightsStoreTests` 是漏网的）。**诚实空态（未做/待后续）**：FR-036 的 AC 是"全模块不得存在只能手势触达的功能"——**这是系统性验收**，本包只补了「退 5 章」这一个明确的 FR-036 项；其余手势（边缘侧滑退出、目录页顶部工具条的其他按钮）是否都已有可见替代，**未做全模块逐手势盘点**（待后续专项）；toast 用 `Task.sleep(2s)` 控制消失，**真机手感待校准**。
+
+---
 ## 3. 状态索引
 
 ### 3.1 仍开放（客户后续再定）

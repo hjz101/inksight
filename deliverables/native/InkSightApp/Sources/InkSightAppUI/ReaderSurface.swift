@@ -70,6 +70,8 @@ public struct ReaderSurfaceView: View {
     @State private var showTOC = false
     /// 进度是否呈现（`进度` 工具条入口）。
     @State private var showProgress = false
+    /// FR-036：退 5 章提示（nil ＝ 无提示）。
+    @State private var backFiveToast: String?
     /// FR-018 版本对比：对比报告（nil ＝ 未打开）。
     @State private var compareReport: VersionDiff.Report?
     @State private var compareLeftName = ""
@@ -236,6 +238,27 @@ public struct ReaderSurfaceView: View {
             // **FR-037：仅阅读器锁竖屏**（其他界面不受限）——进入即锁，退出即解。
             OrientationController.shared.lockReaderToPortrait()
         }
+        // FR-036 退 5 章提示（短暂 toast，诚实反馈）
+        .overlay {
+            if let toast = backFiveToast {
+                Text(toast)
+                    .font(.caption)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Color.primary.opacity(0.08),
+                                in: RoundedRectangle(cornerRadius: 8))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .padding(.top, 60)
+                    .onAppear {
+                        Task { @MainActor in
+                            try? await Task.sleep(for: .seconds(2))
+                            withAnimation(.easeOut(duration: 0.25)) {
+                                backFiveToast = nil
+                            }
+                        }
+                    }
+            }
+        }
         // 目录（章节锚点跳转）
         .overlay {
             if showTOC, let live = session.engine {
@@ -244,6 +267,13 @@ public struct ReaderSurfaceView: View {
                     currentChapter: live.chapterID,
                     onSelect: { index in
                         jumpToChapter(index)
+                        showTOC = false
+                    },
+                    onBackFive: {
+                        // FR-036：上跳 5 章落章首并提示「已退 5 章」
+                        let target = max(0, live.chapterID - 5)
+                        jumpToChapter(target)
+                        backFiveToast = "已退 5 章（第 \(target + 1) 章）"
                         showTOC = false
                     },
                     onClose: { showTOC = false }
