@@ -162,6 +162,57 @@ public final class SQLiteCache: @unchecked Sendable {
         }
     }
 
+    /// 读取 FR-024b 在线进度映射（FR-024b 续读对位；只读，不触碰正文）。
+    ///
+    /// 返回某本书的全部映射行；无记录返回空数组（诚实：不伪装有映射）。
+    public func loadFR024b(bookID: String) -> [FR024bMapping] {
+        lock.lock(); defer { lock.unlock() }
+        guard let db else { return [] }
+        let sql = """
+        SELECT chapter_id, title, char_offset, start_fingerprint, end_fingerprint
+        FROM fr024b_mapping WHERE book_id = ?1 ORDER BY chapter_id;
+        """
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
+        defer { sqlite3_finalize(stmt) }
+        sqlite3_bind_text(stmt, 1, bookID, -1, SQLiteCache.SQLITE_TRANSIENT)
+
+        var rows: [FR024bMapping] = []
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            let chapterID = Int(sqlite3_column_int64(stmt, 0))
+            let title = sqlite3_column_text(stmt, 1).map { String(cString: $0) } ?? ""
+            let charOffset = Int(sqlite3_column_int64(stmt, 2))
+            let start = UInt64(bitPattern: sqlite3_column_int64(stmt, 3))
+            let end = UInt64(bitPattern: sqlite3_column_int64(stmt, 4))
+            rows.append(FR024bMapping(chapterID: chapterID, title: title,
+                                      charOffset: charOffset,
+                                      startFingerprint: start, endFingerprint: end))
+        }
+        return rows
+    }
+
+    /// 按章节读取单条 FR-024b 映射（续读定位用）。
+    public func loadFR024b(bookID: String, chapterID: Int) -> FR024bMapping? {
+        lock.lock(); defer { lock.unlock() }
+        guard let db else { return nil }
+        let sql = """
+        SELECT chapter_id, title, char_offset, start_fingerprint, end_fingerprint
+        FROM fr024b_mapping WHERE book_id = ?1 AND chapter_id = ?2;
+        """
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return nil }
+        defer { sqlite3_finalize(stmt) }
+        sqlite3_bind_text(stmt, 1, bookID, -1, SQLiteCache.SQLITE_TRANSIENT)
+        sqlite3_bind_int64(stmt, 2, Int64(chapterID))
+        guard sqlite3_step(stmt) == SQLITE_ROW else { return nil }
+        let title = sqlite3_column_text(stmt, 1).map { String(cString: $0) } ?? ""
+        let charOffset = Int(sqlite3_column_int64(stmt, 2))
+        let start = UInt64(bitPattern: sqlite3_column_int64(stmt, 3))
+        let end = UInt64(bitPattern: sqlite3_column_int64(stmt, 4))
+        return FR024bMapping(chapterID: chapterID, title: title, charOffset: charOffset,
+                             startFingerprint: start, endFingerprint: end)
+    }
+
     // MARK: - 观测（供契约测试）
 
     /// 读取表列名（白名单内才返回；供断言「无正文字段」）。

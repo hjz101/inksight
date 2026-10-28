@@ -177,4 +177,35 @@ final class SQLiteCacheTests: XCTestCase {
         }
         XCTAssertTrue(threw, "表不存在时的写入必须上浮为错误；报 .success 说明 step 返回码仍被吞掉")
     }
+
+    // MARK: - FR-024b 读取（续读对位，D-66）
+
+    /// 写入后可整书读取（按 chapter_id 排序）。
+    func testFR024bWriteThenLoadAll() {
+        let rows = [
+            FR024bMapping(chapterID: 1, title: "第一章", charOffset: 0, startFingerprint: 1, endFingerprint: 2),
+            FR024bMapping(chapterID: 2, title: "第二章", charOffset: 100, startFingerprint: 3, endFingerprint: 4),
+        ]
+        XCTAssertNoThrow(try cache.upsertFR024b(bookID: "b", rows).get())
+        let loaded = cache.loadFR024b(bookID: "b")
+        XCTAssertEqual(loaded.count, 2)
+        XCTAssertEqual(loaded[0].chapterID, 1)
+        XCTAssertEqual(loaded[1].chapterID, 2, "应按 chapter_id 排序")
+        XCTAssertEqual(loaded[1].charOffset, 100, "偏移必须完整还原")
+    }
+
+    /// 按章节读取单条（续读定位入口）。
+    func testFR024bLoadSingleChapter() {
+        let rows = [
+            FR024bMapping(chapterID: 3, title: "第三章", charOffset: 42, startFingerprint: 7, endFingerprint: 8),
+        ]
+        XCTAssertNoThrow(try cache.upsertFR024b(bookID: "b", rows).get())
+        XCTAssertEqual(cache.loadFR024b(bookID: "b", chapterID: 3)?.charOffset, 42)
+        XCTAssertNil(cache.loadFR024b(bookID: "b", chapterID: 99), "不存在的章应返回 nil")
+    }
+
+    /// 无记录返回空（诚实：不伪装有映射）。
+    func testFR024bLoadEmptyWhenNone() {
+        XCTAssertTrue(cache.loadFR024b(bookID: "no-book").isEmpty)
+    }
 }

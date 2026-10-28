@@ -543,6 +543,11 @@
 **补充登记（D-65 修订）**：`SearchHit.charOffset` 已落地为**可用的精确偏移**——命中点击时在本地原始章节二次扫描查询词（`(text as NSString).range(of:)`，UTF-16 口径），经 `ReaderNavigator` 投递，`ReaderEngine.recordProgress(at:)` 写入共享进度仓库，`ReaderSurface.prepareSession` 按 `charOffset` 二分恢复到命中所在页。**技术边界**：系统 sqlite3 的 FTS5 不提供 FTS3/4 的 `offsets()` 辅助函数，故不做 FTS 位置索引，改为「命中 → 二次读取本地文件 → 原始文本扫描」——不把正文常驻索引、不伪装不可验证的精确偏移。新增 `SearchHitOffsetTests`（4 个）：偏移指向原始章节查询词、缺失词返回 nil 而非 0、多次出现取首次稳定位置、UTF-16 口径（代理对按 NSString 语义）。**测试**：InkSightApp **163 / 0**，InkSightCore 41/0，iOS Simulator SDK Build complete。**诚实空态**：命中句跨页时恢复误差 ≤1 屏（复用 FR-011 口径）；查询词含标点时 `range(of:)` 可能受全角/半角差异影响，未做归一化；跨书重复命中只取首次。
 
 
+### D-66　FR-024b 在线进度映射读取与对齐（换源续读对位）
+
+**随附交付登记（D-53 执行 · 开发包 #17）**：`SQLiteCache` 新增 `loadFR024b(bookID:)` 全量读取与 `loadFR024b(bookID:chapterID:)` 单章读取；新增 `OnlineProgressMapper`（记录/读取/对齐）与 `OnlineProgressMapperTests`（5 个）；`SQLiteCacheTests` 增补 3 个读取测试。**测试**：InkSightApp **171 / 0**，InkSightCore 41/0，iOS Simulator SDK Build complete，跨文档一致性 PASS 67 / FAIL 0。**落地**：①只存章节号／标题／字符偏移／首尾指纹哈希（表结构无正文列，FTS 不索引在线正文）②`record` 幂等覆盖（重复记录以最新为准）③`align` 换源对位——首指纹精确匹配优先，否则首/尾指纹任一匹配（容忍标题/开头漂移），全不匹配返回 nil（诚实：不强行对齐）④读取按 chapter_id 排序。**代价明确（技术约束清单原文）**：在线书不支持跨会话全文检索；检索范围＝本地 FTS ＋ 会话内存已加载章节（≤3 章）。**诚实空态**：`OnlineProgressMapper` 为 Kit 层 API，尚未接入真实在线阅读链路（App 无在线书源，Fetcher 门面已立、调用点待在线功能）；指纹用 `Fingerprint.fnv1a64`（与 `PageAnchor` 同源，归一化后计算）。
+
+---
 ## 3. 状态索引
 
 ### 3.1 仍开放（客户后续再定）
