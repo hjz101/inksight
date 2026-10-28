@@ -58,7 +58,7 @@ public struct ReaderSurfaceView: View {
     /// 无正文时返回 `.noContent`（诚实空态，不伪装成功）。
     @discardableResult
     public func applyTypography(_ typography: ReaderTypography,
-                                containerSize: CGSize = ReaderEngine.defaultContainerSize) -> RepaginationOutcome {
+                                containerSize: CGSize? = nil) -> RepaginationOutcome {
         session.applyTypography(typography, containerSize: containerSize)
     }
 
@@ -198,6 +198,19 @@ struct ReaderPager: View {
     @ViewBuilder
     private func pagingScroll(_ axis: Axis.Set) -> some View {
         GeometryReader { geo in
+            // **NFR-13 缺口 a 闭合（本次，台账 D-59 已登记）**：阅读器在此实测真实尺寸，
+            // 回报给 `ReaderLayout.shared`（容器尺寸**单一来源**）——设置页与阅读器
+            // 从此读同一尺寸 ⇒ `TypographySignature` 一致 ⇒ 两端缓存真正互通。
+            // 只在尺寸变化时回报（布局回调可能频繁触发，去重避免无谓写入）。
+            let size = geo.size
+            Color.clear
+                .frame(width: size.width, height: size.height)
+                .onAppear {
+                    ReaderLayout.shared.update(containerSize: size, screenScale: 1.0)
+                }
+                .onChange(of: size) { _, newSize in
+                    ReaderLayout.shared.update(containerSize: newSize, screenScale: 1.0)
+                }
             let pageID = Binding<Int?>(
                 get: { page },
                 set: { if let v = $0 { page = v } }

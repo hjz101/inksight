@@ -152,9 +152,13 @@ public final class ReaderSession: ObservableObject {
     /// 无正文时返回 `.noContent`——**诚实空态，不伪装成功**。
     @discardableResult
     public func applyTypography(_ typography: ReaderTypography,
-                                containerSize: CGSize = ReaderEngine.defaultContainerSize,
-                                screenScale: Double = 1.0,
+                                containerSize: CGSize? = nil,
+                                screenScale: Double? = nil,
                                 kinsoku: Kinsoku = .v1) -> RepaginationOutcome {
+        // **NFR-13 容器尺寸单一来源**：默认取 `ReaderLayout.shared` 的当前值——
+        // 阅读器已回报真实尺寸，设置页与阅读器读同一来源 ⇒ 签名一致 ⇒ 缓存互通。
+        let effectiveSize = containerSize ?? ReaderLayout.shared.containerSize
+        let effectiveScale = screenScale ?? ReaderLayout.shared.screenScale
         guard let engine, !engine.chapterText.isEmpty else {
             let outcome = RepaginationOutcome(
                 status: .noContent,
@@ -181,8 +185,8 @@ public final class ReaderSession: ObservableObject {
         let report = coordinator.apply(typography,
                                        chapterText: engine.chapterText,
                                        chapterID: engine.chapterID,
-                                       containerSize: containerSize,
-                                       screenScale: screenScale,
+                                       containerSize: effectiveSize,
+                                       screenScale: effectiveScale,
                                        kinsoku: kinsoku)
 
         // 新引擎：同 bookID / 同 chapterID / 同正文 / 新排版；**共享同一份进度仓库**（进度不丢）
@@ -191,7 +195,7 @@ public final class ReaderSession: ObservableObject {
                                      chapterText: engine.chapterText,
                                      typography: typography,
                                      kinsoku: kinsoku,
-                                     containerSize: containerSize,
+                                     containerSize: effectiveSize,
                                      progressStore: engine.progressStore)
 
         // 新页索引：**由 charOffset 经新锚点二分得到**（不是旧页码）

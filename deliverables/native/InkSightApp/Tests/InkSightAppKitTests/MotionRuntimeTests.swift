@@ -355,4 +355,49 @@ final class MotionRuntimeTests: XCTestCase {
         XCTAssertFalse(PaginationCoordinator() === PaginationCoordinator.shared,
                        "独立实例必须与单例不是同一对象")
     }
+
+    // MARK: - NFR-13 缺口 a 闭合：容器尺寸单一来源（ReaderLayout）
+
+    /// **阅读器回报真实尺寸后，`ReaderSession.applyTypography` 默认参数必须用
+    /// `ReaderLayout.shared` 的当前值**（容器尺寸单一来源，NFR-13）。
+    ///
+    /// 缺口背景：`TypographySignature` 含 `containerSize`——设置页与阅读器若用不同尺寸，
+    /// 签名就不同，即使共用协调器两端缓存也互不命中。修复前 `ReaderSession.applyTypography`
+    /// 默认参数是 `ReaderEngine.defaultContainerSize`（360×720 常量），阅读器实测值
+    /// 进不了签名。本测试锁住：更新 `ReaderLayout.shared` 后，不显式传尺寸的
+    /// `applyTypography` 必须用新值（即阅读器回报的尺寸），而非旧常量。
+    @MainActor
+    func testApplyTypographyDefaultsToReaderLayoutSharedSize() {
+        // 用一个独立 ReaderLayout 会破坏"单一来源"语义——这里直接验证 ReaderLayout.shared：
+        // 先记录默认种子值，然后模拟阅读器回报一个不同尺寸，断言 applyTypography 跟随。
+        let session = ReaderSession(engine: nil, coordinator: PaginationCoordinator())
+        // 无引擎时 noContent 路径不触达尺寸——用有引擎的路径验证签名是否变化
+        let engine = ReaderEngine(bookID: "layout-a", chapterID: 1,
+                                  chapterText: "用于验证容器尺寸单一来源的章节正文内容，足够长以分页。")
+        let coordinator = PaginationCoordinator()
+        let realSession = ReaderSession(engine: engine, coordinator: coordinator)
+
+        // 基线：默认尺寸下的签名
+        let defaultSig = ReaderLayout.shared.currentSignature(typography: .default).digest
+
+        // 模拟阅读器回报真实尺寸（GeometryReader 实测路径）
+        let realSize = CGSize(width: 393, height: 852)
+        ReaderLayout.shared.update(containerSize: realSize, screenScale: 2.0)
+        XCTAssertEqual(ReaderLayout.shared.containerSize, realSize, "ReaderLayout 必须接受回报")
+
+        // 不显式传尺寸 → 必须用 ReaderLayout.shared 的新值
+        let outcome = realSession.applyTypography(.default)
+        XCTAssertEqual(outcome.status, .ok)
+        XCTAssertEqual(coordinator.currentSignature?.digest,
+                       ReaderLayout.shared.currentSignature(typography: .default).digest,
+                       "applyTypography 默认尺寸必须取自 ReaderLayout.shared（单一来源）")
+
+        // 签名应随尺寸变化（不同尺寸 ⇒ 不同签名）
+        XCTAssertNotEqual(coordinator.currentSignature?.digest, defaultSig,
+                          "尺寸从种子值变为实测值后签名必须变化（否则尺寸没进签名）")
+
+        // 还原（避免污染其他测试）
+        ReaderLayout.shared.update(containerSize: ReaderEngine.defaultContainerSize, screenScale: 1.0)
+    }
+
 }
