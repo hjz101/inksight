@@ -69,13 +69,13 @@
 | 落盘单门 | 业务层无裸 `.write(to:`（源码扫描门禁） |
 | 出网单门 | 业务层无裸 `URLSession`（源码扫描门禁） |
 
-构建命令（本机需绕过宿主沙箱，禁用 `xcodebuild`）：
+构建命令（**标准命令即可，无需 `--disable-sandbox`**——台账 D-53 记录的宿主沙箱限制已解除，见 D-69）：
 
 ```bash
 cd deliverables/native/InkSightApp
-swift test --disable-sandbox
+swift test
 swift build --sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk \
-            --triple arm64-apple-ios26.0-simulator --disable-sandbox
+            --triple arm64-apple-ios26.0-simulator
 ```
 
 ## 五、尚待真机验证（不与本机逻辑证据混装）

@@ -558,6 +558,11 @@
 **随附交付登记（D-53 执行 · 开发包 #19）**：新增 `NotesScreen`（墨迹 Tab）；`RootTabView` 补第 5 个 Tab（墨迹，插在书架与墨量之间）；`Highlight` 加 `Hashable`。**测试**：InkSightApp **177 / 0**（无新增单测，UI 层；Kit 层已由 D-67 覆盖），InkSightCore 41/0，iOS Simulator SDK Build complete，跨文档一致性 PASS 67 / FAIL 0。**落地**：①**Tab 补齐**——PRD §2.0 定义的 5 个 Tab（发现/书架/墨迹/墨量/我）此前只有 4 个，缺墨迹；本轮补上 ②墨迹 Tab 展示划线列表（选中文本快照高亮底纹 + 想法 + 章号 + 标签）③**标签筛选条**（FR-022 一个标签跨书聚合：全部/按标签过滤）④诚实空态「还没有划线，阅读时长按选中句子即可划线」——不伪装有内容。**诚实空态（本包未做/待后续）**：**划线创建交互未接**——阅读器是 Canvas 自绘排版（FR-031 零位移），长按选句需要「文本→坐标」映射或引入 TextKit 容器，属架构级改动，本轮不做；墨迹 Tab 当前展示 D-67 Kit 层已存的数据（可手工注入/测试构造），真实划线由用户流程产生前为空态；笔记导出（FR-025 BackupPayload 未纳入 Highlight）待后续。
 
 ---
+### D-69　宿主沙箱限制解除：`--disable-sandbox` 不再需要，README 构建命令收口
+
+**裁定**：台账 D-53 记录的「本机宿主沙箱拒绝 `sandbox_apply`（退出码 74），统一用 `swift build/test --disable-sandbox`」的约束**已解除**。2026-10-28 复测：两包干净重建（`rm -rf .build` 后 `swift build`）、`swift test`、iOS 26.5 Simulator SDK 构建**均无需 `--disable-sandbox`，退出码 0**（Core 41/0、App 177/0）。根因是当时宿主环境（WorkBuddy 沙箱）拒绝 Swift 编译器自身的 sandbox 初始化，属环境限制而非代码问题；现环境已不触发。**影响面**：README 构建命令段更新为标准命令；D-53 及其后各开发包登记中的 `--disable-sandbox` 字样**保留为沿革记录**（台账规则 4：旧条原文不改，是历史事实），后续新读者以 README 与本条为准。**是否改判**：否（环境变化，非判定变更；D-53 的裁定在当时环境下正确）。
+
+---
 ## 3. 状态索引
 
 ### 3.1 仍开放（客户后续再定）
