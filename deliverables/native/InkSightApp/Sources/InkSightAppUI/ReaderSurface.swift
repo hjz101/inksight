@@ -236,20 +236,11 @@ public struct ReaderSurfaceView: View {
         // FR-018 版本对比（次入口）：逐章列出一致/有差异/仅一侧
         .overlay {
             if let report = compareReport {
-                ZStack(alignment: .bottom) {
-                    Color.black.opacity(0.28)
-                        .ignoresSafeArea()
-                        .onTapGesture { compareReport = nil }
-                    VersionCompareView(report: report,
-                                       leftName: compareLeftName,
-                                       rightName: compareRightName,
-                                       onClose: { compareReport = nil })
-                        .frame(maxHeight: 520)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 8)
-                }
-                .transition(.opacity)
+                VersionCompareOverlay(report: report,
+                                      leftName: compareLeftName,
+                                      rightName: compareRightName,
+                                      onClose: { compareReport = nil })
+                    .transition(.opacity)
             }
         }
         // FR-018「换一个版本」面板：底部 sheet 类（D-38 高度口径由 BottomSheetContainer 承载）。

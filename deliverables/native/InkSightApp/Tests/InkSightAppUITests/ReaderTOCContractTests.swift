@@ -84,3 +84,53 @@ final class ReaderTOCContractTests: XCTestCase {
         XCTAssertFalse(body.contains("pageIndex"), "跳章不得依赖 pageIndex")
     }
 }
+
+/// 玻璃唯一入口纪律（D-28）：阅读器内的浮层**不得直接使用 `.regularMaterial` 等 Material**，
+/// 必须经 `GlassSurface`（否则绕过白名单与四态收起）。
+final class GlassEntryPointContractTests: XCTestCase {
+
+    private func source(_ name: String) throws -> String {
+        let base = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Sources/InkSightAppUI")
+        let raw = try String(contentsOf: base.appendingPathComponent(name), encoding: .utf8)
+        return raw.split(separator: "\n", omittingEmptySubsequences: false)
+            .map(String.init)
+            .filter {
+                let t = $0.trimmingCharacters(in: .whitespaces)
+                return !t.hasPrefix("//") && !t.hasPrefix("///") && !t.hasPrefix("*")
+            }
+            .joined(separator: "\n")
+    }
+
+    /// 三处浮层都不得直接 background material。
+    func testNoDirectMaterialInReaderPanels() throws {
+        for file in ["ReaderTOCSheet.swift", "ReaderSurface.swift"] {
+            let src = try source(file)
+            XCTAssertFalse(src.contains(".regularMaterial"),
+                           "\(file) 不得直接使用 .regularMaterial（须经 GlassSurface）")
+            XCTAssertFalse(src.contains(".thinMaterial"),
+                           "\(file) 不得使用 .thinMaterial")
+            XCTAssertFalse(src.contains(".ultraThinMaterial"),
+                           "\(file) 不得使用 .ultraThinMaterial")
+        }
+    }
+
+    /// 三处浮层都经 GlassSurface 绘制。
+    func testPanelsUseGlassSurface() throws {
+        let toc = try source("ReaderTOCSheet.swift")
+        let tocCount = toc.components(separatedBy: "GlassSurface(strength: .l3").count - 1
+        XCTAssertGreaterThanOrEqual(tocCount, 2, "目录与进度都应经 GlassSurface(.l3)")
+
+        // 版本对比浮层已抽到独立文件（ReaderSurface 受 0 玻璃结构约束，不得含 GlassSurface）
+        let overlay = try source("VersionCompareOverlay.swift")
+        XCTAssertTrue(overlay.contains("GlassSurface(strength: .l3"),
+                      "版本对比浮层应经 GlassSurface(.l3)")
+        // 且 ReaderSurface 本身必须保持 0 玻璃（另由 ReaderContractTests 守）
+        let surface = try source("ReaderSurface.swift")
+        XCTAssertFalse(surface.contains("GlassSurface("),
+                       "ReaderSurface 不得含任何 GlassSurface 代码（正文区 0 玻璃）")
+    }
+}

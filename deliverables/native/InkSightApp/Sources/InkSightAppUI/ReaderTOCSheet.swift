@@ -26,6 +26,8 @@ struct ReaderTOCSheet: View {
                 .onTapGesture { onClose() }
                 .accessibilityLabel("关闭目录")
 
+            // **玻璃唯一入口**（D-28 白名单：浮层与工具栏）——不得直接 .regularMaterial
+            GlassSurface(strength: .l3, interactive: true, cornerRadius: 22) {
             VStack(spacing: 0) {
                 Capsule()
                     .fill(Color.secondary.opacity(0.45))
@@ -79,7 +81,7 @@ struct ReaderTOCSheet: View {
                 }
             }
             .frame(maxHeight: 520)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
+            }
             .padding(.horizontal, 12)
             .padding(.bottom, 8)
             .accessibilityAction(.escape) { onClose() }
@@ -112,6 +114,7 @@ struct ReaderProgressSheet: View {
                 .onTapGesture { onClose() }
                 .accessibilityLabel("关闭进度")
 
+            GlassSurface(strength: .l3, interactive: true, cornerRadius: 22) {
             VStack(spacing: 0) {
                 Capsule()
                     .fill(Color.secondary.opacity(0.45))
@@ -145,7 +148,7 @@ struct ReaderProgressSheet: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
             }
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
+            }
             .padding(.horizontal, 12)
             .padding(.bottom, 8)
             .accessibilityAction(.escape) { onClose() }
