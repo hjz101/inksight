@@ -20,13 +20,17 @@ struct ReaderToolbar: View {
     var onSwapVersion: () -> Void = {}
     /// 打开阅读设置浮层（`setSheet` 原生对应）。
     var onSettings: () -> Void = {}
+    /// 打开目录（按章节锚点跳转）。
+    var onTOC: () -> Void = {}
+    /// 打开进度（显示当前章节/页位置并可定位）。
+    var onProgress: () -> Void = {}
 
     var body: some View {
         GlassSurface(strength: .l1, interactive: true,
                      cornerRadius: 18, presentation: presentation) {
             HStack(spacing: 4) {
-                toolbarButton("目录", systemImage: "list.bullet", action: {})
-                toolbarButton("进度", systemImage: "book.pages", action: {})
+                toolbarButton("目录", systemImage: "list.bullet", action: onTOC)
+                toolbarButton("进度", systemImage: "book.pages", action: onProgress)
                 toolbarButton("书签", systemImage: "bookmark", action: onBookmark)
                 toolbarButton("换一个版本", systemImage: "arrow.triangle.swap", action: onSwapVersion)
                 toolbarButton("排版", systemImage: "textformat.size", action: onSettings)

@@ -58,6 +58,10 @@ public struct ReaderSurfaceView: View {
     @State private var toolbarVisible = true
     /// 浮层内可编辑的排版预设（与持久化预设同源）。
     @State private var editablePreset: ReaderTypography = TypographyPresetStore().load()
+    /// 目录是否呈现（`目录` 工具条入口）。
+    @State private var showTOC = false
+    /// 进度是否呈现（`进度` 工具条入口）。
+    @State private var showProgress = false
     /// FR-018 版本对比：对比报告（nil ＝ 未打开）。
     @State private var compareReport: VersionDiff.Report?
     @State private var compareLeftName = ""
@@ -147,7 +151,9 @@ public struct ReaderSurfaceView: View {
                                 try? await Task.sleep(for: .seconds(GlassPresentationState.transitionDuration))
                                 glassPresentation = .steady
                             }
-                        }
+                        },
+                        onTOC: { showTOC = true },
+                        onProgress: { showProgress = true }
                     )
                     .transition(.identity)   // A 档：显隐直切，不用系统动画
                     }
@@ -164,6 +170,41 @@ public struct ReaderSurfaceView: View {
             prepareSession()
             // **FR-037：仅阅读器锁竖屏**（其他界面不受限）——进入即锁，退出即解。
             OrientationController.shared.lockReaderToPortrait()
+        }
+        // 目录（章节锚点跳转）
+        .overlay {
+            if showTOC, let live = session.engine {
+                ReaderTOCSheet(
+                    titles: tocTitles(for: live),
+                    currentChapter: live.chapterID,
+                    onSelect: { index in
+                        jumpToChapter(index)
+                        showTOC = false
+                    },
+                    onClose: { showTOC = false }
+                )
+                .transition(.opacity)
+            }
+        }
+        // 进度（位置以 charOffset 表达）
+        .overlay {
+            if showProgress, let live = session.engine {
+                ReaderProgressSheet(
+                    chapterIndex: live.chapterID,
+                    chapterCount: bookShelf?.item(for: live.bookID)?.chapters.count ?? 1,
+                    pageIndex: session.currentPage,
+                    pageCount: live.pageCount,
+                    charOffset: live.page(at: session.currentPage)?.anchor.charOffset ?? 0,
+                    onRestartChapter: {
+                        if let first = live.page(at: 0)?.anchor.charOffset {
+                            live.recordProgress(at: first)
+                            session.currentPage = 0
+                        }
+                    },
+                    onClose: { showProgress = false }
+                )
+                .transition(.opacity)
+            }
         }
         // **FR-014 阅读设置浮层**（L3 玻璃白名单；四条可用性见 ReaderSettingsSheet）：
         // 自绘 overlay 而非系统 sheet —— 系统 sheet 的关闭方式不受我们控制，
@@ -301,6 +342,33 @@ public struct ReaderSurfaceView: View {
         let thirdW = size.width / 3, thirdH = size.height / 3
         return location.x >= thirdW && location.x <= thirdW * 2
             && location.y >= thirdH && location.y <= thirdH * 2
+    }
+
+    // MARK: - 目录（按章节锚点跳转）
+
+    /// 章节标题（来自 `ChapterAnchor.title`，不含正文——NFR-08）。
+    private func tocTitles(for live: ReaderEngine) -> [String] {
+        guard let item = bookShelf?.item(for: live.bookID) else { return [] }
+        return item.chapters.map(\.title)
+    }
+
+    /// 跳到指定章：取该章正文 → 建新引擎 → 采纳并停在章首。
+    ///
+    /// 定位铁律：跳转后落点是**章首 `charOffset = 0`**，不是页码。
+    private func jumpToChapter(_ index: Int) {
+        guard let shelf = bookShelf,
+              let live = session.engine,
+              let item = shelf.item(for: live.bookID),
+              index >= 0, index < item.chapters.count,
+              let text = shelf.chapterText(for: item, chapterIndex: index) else { return }
+
+        let newEngine = ReaderEngine(bookID: item.bookID, chapterID: index,
+                                     chapterText: text, typography: live.typography,
+                                     containerSize: ReaderLayout.shared.containerSize,
+                                     progressStore: live.progressStore)
+        newEngine.recordProgress(at: 0)
+        session.adopt(newEngine)
+        session.currentPage = 0
     }
 
     // MARK: - 多副本对齐（FR-018）
