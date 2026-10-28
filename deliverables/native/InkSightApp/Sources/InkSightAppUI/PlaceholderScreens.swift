@@ -250,6 +250,8 @@ struct MeScreen: View {
 
     /// 当前排版预设：由持久化存储加载（首次为 `ReaderTypography.default`），改动即时落盘。
     @State private var preset: ReaderTypography
+    /// 动效开关（FR-030 原文②）：全局总关 ＋ 每 ID 一行独立开关；由持久化存储加载。
+    @State private var motionSettings: MotionSettings
     /// 分页协调器（演示用，持有跨点击的当前签名，以演示「旧→新」作废链路）。
     @State private var coordinator = PaginationCoordinator()
     /// 最近一次重分页报告（仅界面呈现；机制链路真实发生）。
@@ -259,6 +261,7 @@ struct MeScreen: View {
         self.ageState = ageState
         self.variant = variant
         _preset = State(initialValue: TypographyPresetStore().load())
+        _motionSettings = State(initialValue: MotionSettingsStore().load())
     }
 
     var body: some View {
@@ -274,14 +277,18 @@ struct MeScreen: View {
                 Text("切换年龄态不存在任何界面控件——状态由系统分龄决定，保守方向出错是少保护。")
             }
 
-            // 设置入口（开发包 #6）：受控项经 AgeGateMatrix.cell(.settingsPath) 派生可见性；
-            // .absent 态结构上不生成（沉默，非隐藏）。排版预设已持久化，仅演示重分页，无年龄切换控件。
+            // 设置入口（开发包 #6/#7）：受控项经 AgeGateMatrix.cell(.settingsPath) 派生可见性；
+            // .absent 态结构上不生成（沉默，非隐藏）。排版预设已持久化，动效开关已持久化，无年龄切换控件。
             if AgeGateMatrix.cell(state: ageState, variant: variant).settingsPath != .absent {
                 settingsSection
+                motionSection
             }
         }
         // 预设改动即时落盘（单门 JSON 原子写；不设备份排除键——用户偏好应可备份）
         .onChange(of: preset) { try? TypographyPresetStore().save(preset) }
+        // 进入设置页时把持久化的动效开关应用到唯一动画入口
+        // （否则「持久化」只是落盘不生效＝不诚实）
+        .onAppear { MotionCoordinator.shared.apply(motionSettings) }
     }
 
     /// 设置（持久化排版预设）：真实可编辑，改动经 `.onChange` 即时落盘。
@@ -349,6 +356,63 @@ struct MeScreen: View {
         } footer: {
             Text("「应用并重分页」仅演示缓存作废机制链路，不涉及任何正文落盘（CTFrameCache 仅内存）。")
         }
+    }
+
+    /// 动效分区（开发包 #7 · FR-030 原文②）：按「转场 4／彩蛋 5／手势 2」三组分组，
+    /// **每 ID 一行独立开关**。行上中文名取自 `MotionRegistry.spec(for:).chineseName`
+    /// ——**Registry 是唯一来源，UI 不另写一份名字**。
+    ///
+    /// **T4／T5 无单独开关**（FR-030 明文：T4 直切回位＋位置标签、T5 降级 0ms 静态成功态）
+    /// → `MotionRegistry.ids(inGroup:)` 已将其剔除，此处**结构上不生成**这两行开关。
+    @ViewBuilder
+    private var motionSection: some View {
+        // 全局总开关（FR-030）：优先级最高——关闭后任何单个动效开关都不能让它重新播放。
+        Section {
+            Toggle(isOn: Binding(
+                get: { motionSettings.globalEnabled },
+                set: { newValue in
+                    motionSettings.globalEnabled = newValue
+                    applyMotionSettings()
+                }
+            )) {
+                Text("全部动效")
+            }
+        } header: {
+            Text("动效总开关")
+        } footer: {
+            Text("总关优先级最高：关闭后，任何单个动效开关都不能让它重新播放。关闭只减掉动画，不减掉功能。")
+        }
+
+        ForEach(MotionGroup.allCases, id: \.self) { group in
+            Section {
+                ForEach(MotionRegistry.ids(inGroup: group), id: \.self) { id in
+                    Toggle(isOn: Binding(
+                        get: { motionSettings.perID[id.rawValue] ?? true },
+                        set: { newValue in
+                            motionSettings.perID[id.rawValue] = newValue
+                            applyMotionSettings()
+                        }
+                    )) {
+                        HStack {
+                            Text(MotionRegistry.spec(for: id).chineseName)
+                            Spacer()
+                            Text(id.rawValue)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            } header: {
+                Text(group.chineseName)
+            }
+        }
+    }
+
+    /// 把动效开关应用到唯一动画入口（`MotionCoordinator`），并即时落盘（单门 JSON 原子写）。
+    @MainActor
+    private func applyMotionSettings() {
+        MotionCoordinator.shared.apply(motionSettings)
+        try? MotionSettingsStore().save(motionSettings)
     }
 
     /// 演示机制链路：用持久化预设重排示例章节，把 `RePaginationReport` 打到调试输出。

@@ -38,5 +38,8 @@ struct RootView: View {
                     .transition(.identity)
             }
         }
+        // 启动即把持久化的动效开关应用到唯一动画入口（开发包 #7）。
+        // 不做这一步的话，「持久化」只是落盘不生效＝不诚实：用户关了某 ID，重启后又自己播回来。
+        .onAppear { MotionCoordinator.shared.apply(MotionSettingsStore().load()) }
     }
 }
