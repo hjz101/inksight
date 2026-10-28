@@ -548,6 +548,11 @@
 **随附交付登记（D-53 执行 · 开发包 #17）**：`SQLiteCache` 新增 `loadFR024b(bookID:)` 全量读取与 `loadFR024b(bookID:chapterID:)` 单章读取；新增 `OnlineProgressMapper`（记录/读取/对齐）与 `OnlineProgressMapperTests`（5 个）；`SQLiteCacheTests` 增补 3 个读取测试。**测试**：InkSightApp **171 / 0**，InkSightCore 41/0，iOS Simulator SDK Build complete，跨文档一致性 PASS 67 / FAIL 0。**落地**：①只存章节号／标题／字符偏移／首尾指纹哈希（表结构无正文列，FTS 不索引在线正文）②`record` 幂等覆盖（重复记录以最新为准）③`align` 换源对位——首指纹精确匹配优先，否则首/尾指纹任一匹配（容忍标题/开头漂移），全不匹配返回 nil（诚实：不强行对齐）④读取按 chapter_id 排序。**代价明确（技术约束清单原文）**：在线书不支持跨会话全文检索；检索范围＝本地 FTS ＋ 会话内存已加载章节（≤3 章）。**诚实空态**：`OnlineProgressMapper` 为 Kit 层 API，尚未接入真实在线阅读链路（App 无在线书源，Fetcher 门面已立、调用点待在线功能）；指纹用 `Fingerprint.fnv1a64`（与 `PageAnchor` 同源，归一化后计算）。
 
 ---
+### D-67　FR-013 划线/笔记 Kit 层（模型＋仓库＋定位铁律）
+
+**随附交付登记（D-53 执行 · 开发包 #18）**：新增 `Highlight`（模型）／`HighlightsStore`（仓库）／`HighlightsStoreTests`（6 个）。**测试**：InkSightApp **177 / 0**（D-66 后 171 ＋ 本包新增 6），InkSightCore 41/0 维持。**落地**：①划线锚点**定位铁律同源**——`charOffset + length + fingerprint`，结构上无 `pageIndex`（测试断言落盘 JSON 无该键）②选中文本提取 UTF-16 口径（与 `PageAnchor`/`ReadingProgress` 同源），越界返回 nil ③仓库支持增删查、按书/章筛选（偏移排序）、按标签聚合（FR-022 跨书聚合基础）④落盘经 `Persist` 门面（`.notes` payload），笔记属用户数据可备份（`excludedFromBackup = false`）。**诚实空态（本包未做/待后续）**：划线 UI 未接（阅读器长按选句交互待 UI 包）；笔记导出（FR-025 已含笔记字段，`BackupPayload` 暂未纳入 Highlight，待后续）；标签管理界面未做。
+
+---
 ## 3. 状态索引
 
 ### 3.1 仍开放（客户后续再定）
