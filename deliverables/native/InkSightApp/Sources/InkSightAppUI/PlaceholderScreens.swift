@@ -134,11 +134,22 @@ struct InkScreen: View {
             .padding()
         }
         .sheet(isPresented: $showSearch) {
-            LocalSearchView(searchStore: searchStore) { hit in
+            LocalSearchView(searchStore: searchStore) { hit, query in
                 // FR-024a 检索跳转：跨 Tab 无法直接传视图状态，经 App 级路由器投递请求，
-                // 由书架 Tab 的阅读器宿主消费（`ShelfScreen` 监听 onAppear/onChange）。
+                // 由书架 Tab 的阅读器宿主消费（`ShelfScreen` 监听 onAppear/通知）。
+                // FTS5 不直接提供原文 UTF-16 offset；从本地原始章节二次扫描，
+                // 不把全文常驻索引，命中后把精确偏移交给阅读器恢复页。
+                let offset: Int?
+                if let item = bookShelf.item(for: hit.bookID),
+                   let text = bookShelf.chapterText(for: item, chapterIndex: hit.chapterIndex) {
+                    let range = (text as NSString).range(of: query)
+                    offset = range.location == NSNotFound ? nil : range.location
+                } else {
+                    offset = nil
+                }
                 ReaderNavigator.shared.request(ReaderNavigationRequest(bookID: hit.bookID,
-                                                                       chapterIndex: hit.chapterIndex))
+                                                                       chapterIndex: hit.chapterIndex,
+                                                                       charOffset: offset))
             }
         }
     }
@@ -207,9 +218,15 @@ struct ShelfScreen: View {
         let chapterIndex = min(max(0, request.chapterIndex), max(0, item.chapters.count - 1))
         guard let text = bookShelf.chapterText(for: item, chapterIndex: chapterIndex) else { return }
         let typography = TypographyPresetStore().load()
-        activeEngine = ReaderEngine(bookID: item.bookID, chapterID: chapterIndex, chapterText: text,
-                                    typography: typography,
-                                    containerSize: ReaderLayout.shared.containerSize)
+        let engine = ReaderEngine(bookID: item.bookID, chapterID: chapterIndex, chapterText: text,
+                                  typography: typography,
+                                  containerSize: ReaderLayout.shared.containerSize)
+        // 命中偏移已由上游在原始章节二次扫描得到；写入共享进度仓库后，
+        // ReaderSurface.prepareSession 会按 charOffset 二分恢复到命中所在页。
+        if let offset = request.charOffset {
+            engine.recordProgress(at: offset)
+        }
+        activeEngine = engine
     }
 
     @ViewBuilder

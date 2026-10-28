@@ -14,8 +14,8 @@ struct LocalSearchView: View {
 
     /// 检索仓库（nil ＝ 未注入，走诚实空态）。
     let searchStore: LocalSearchStore?
-    /// 命中项点击回调（跳转由上层决定；nil ＝ 不提供跳转）。
-    var onSelect: ((LocalSearchStore.SearchHit) -> Void)?
+    /// 命中项点击回调（携带当前查询词；上层可在原始章节中计算 UTF-16 偏移）。
+    var onSelect: ((LocalSearchStore.SearchHit, String) -> Void)?
 
     @State private var query = ""
     @State private var hits: [LocalSearchStore.SearchHit] = []
@@ -84,7 +84,7 @@ struct LocalSearchView: View {
                     }
                     .padding(.vertical, 4)
                     if let onSelect {
-                        Button { onSelect(hit); dismiss() } label: { row }
+                        Button { onSelect(hit, query); dismiss() } label: { row }
                             .buttonStyle(.plain)
                     } else {
                         row
