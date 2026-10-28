@@ -14,6 +14,8 @@ struct LocalSearchView: View {
 
     /// 检索仓库（nil ＝ 未注入，走诚实空态）。
     let searchStore: LocalSearchStore?
+    /// 命中项点击回调（跳转由上层决定；nil ＝ 不提供跳转）。
+    var onSelect: ((LocalSearchStore.SearchHit) -> Void)?
 
     @State private var query = ""
     @State private var hits: [LocalSearchStore.SearchHit] = []
@@ -66,7 +68,7 @@ struct LocalSearchView: View {
                 honestEmptyState("输入关键词开始检索", detail: "检索范围：本地导入的书，可离线。")
             } else {
                 List(hits, id: \.self) { hit in
-                    VStack(alignment: .leading, spacing: 6) {
+                    let row = VStack(alignment: .leading, spacing: 6) {
                         HStack {
                             Text(hit.bookTitle).font(.subheadline.weight(.medium))
                             Spacer()
@@ -81,6 +83,12 @@ struct LocalSearchView: View {
                             .lineLimit(3)
                     }
                     .padding(.vertical, 4)
+                    if let onSelect {
+                        Button { onSelect(hit); dismiss() } label: { row }
+                            .buttonStyle(.plain)
+                    } else {
+                        row
+                    }
                 }
             }
         } else {

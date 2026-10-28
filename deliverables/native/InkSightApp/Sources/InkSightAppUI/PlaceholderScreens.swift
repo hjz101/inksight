@@ -134,7 +134,12 @@ struct InkScreen: View {
             .padding()
         }
         .sheet(isPresented: $showSearch) {
-            LocalSearchView(searchStore: searchStore)
+            LocalSearchView(searchStore: searchStore) { hit in
+                // FR-024a 检索跳转：跨 Tab 无法直接传视图状态，经 App 级路由器投递请求，
+                // 由书架 Tab 的阅读器宿主消费（`ShelfScreen` 监听 onAppear/onChange）。
+                ReaderNavigator.shared.request(ReaderNavigationRequest(bookID: hit.bookID,
+                                                                       chapterIndex: hit.chapterIndex))
+            }
         }
     }
 }
@@ -149,6 +154,8 @@ struct InkScreen: View {
 struct ShelfScreen: View {
     let bookShelf: BookShelfStore
     let onOpenReader: () -> Void
+    /// 本地检索索引（nil ＝索引不可用，导入仍可完成）。
+    let searchStore: LocalSearchStore?
 
     @State private var showImporter = false
     @State private var activeEngine: ReaderEngine?
@@ -183,6 +190,26 @@ struct ShelfScreen: View {
                       allowsMultipleSelection: false) { result in
             handleImport(result)
         }
+        // FR-024a 检索跳转：消费 App 级路由器上的待处理请求。
+        // 触发时机两处：onAppear（检索后切到书架 Tab）与 onChange（已在本 Tab 时再检索）。
+        // `consume()` 是一次性的，两处都调不会重复打开。
+        .onAppear { consumeNavigationRequest() }
+        .onReceive(NotificationCenter.default.publisher(for: .readerNavigationRequested)) { _ in
+            // 已经在书架 Tab 时，Tab 不会重新 appear；直接消费通知。
+            consumeNavigationRequest()
+        }
+    }
+
+    /// 消费检索投递的打开请求（一次性）。
+    private func consumeNavigationRequest() {
+        guard let request = ReaderNavigator.shared.consume() else { return }
+        guard let item = bookShelf.item(for: request.bookID) else { return }
+        let chapterIndex = min(max(0, request.chapterIndex), max(0, item.chapters.count - 1))
+        guard let text = bookShelf.chapterText(for: item, chapterIndex: chapterIndex) else { return }
+        let typography = TypographyPresetStore().load()
+        activeEngine = ReaderEngine(bookID: item.bookID, chapterID: chapterIndex, chapterText: text,
+                                    typography: typography,
+                                    containerSize: ReaderLayout.shared.containerSize)
     }
 
     @ViewBuilder
@@ -225,6 +252,13 @@ struct ShelfScreen: View {
         let title = url.deletingPathExtension().lastPathComponent
         do {
             let item = try bookShelf.importLocalBook(bookID: bookID, title: title, fileURL: url)
+            // FR-024a：导入成功后显式建立本地 FTS 索引（逐章切片，不一次性常驻全文）。
+            // 索引失败不阻断导入/阅读——搜索页走诚实空态，书架仍可用。
+            if let searchStore,
+               let data = try? Data(contentsOf: url) {
+                _ = searchStore.indexBook(bookID: item.bookID, bookTitle: item.title,
+                                          fileData: data, chapters: item.chapters)
+            }
             openBook(item)
         } catch {
             // 导入失败（如沙箱拒绝）：不产生条目，保持诚实空态
