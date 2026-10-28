@@ -682,6 +682,11 @@
 **补记（同批）**：D-92 初版统计**只在内存**（重启清零，已在该条如实登记为缺口）。本轮补 `ReadingMetrics` 落盘（经 `Persist` 门面写 `ReadingSessions.json`），`recordReading` 后立即持久化；新增 `ReadingMetricsPersistenceTests`（3）覆盖「重启后会话与累计时长仍在」「无文件为空不伪造」「纯内存模式（`fileURL: nil`）不产生文件」。同时**修正测试卫生**：既有 `ReadingMetricsTests` 改用 `fileURL: nil` 纯内存模式，**不再污染真实 Application Support**（这是本轮自查发现的问题——初版测试会往用户目录写文件）。另清理了一处我自己写的无意义断言（`flatMap` 那行恒为真，等于没测）。测试：InkSightApp **396 / 0**（393 ＋ 3）。
 
 ---
+### D-93　FR-012 TTS 朗读落地（系统语音 ＋ 0.5–2.5 倍速 ＋ 定时关闭 ＋ 锁屏会话）
+
+**随附交付登记（D-53 执行 · 开发包 #43）**：新增 `TTSEngine`（状态机＋分段＋语速映射）／`TTSSettings`／`TTSPanel`（朗读面板）／`TTSAudioSession`（锁屏音频会话）＋ 测试 `TTSEngineTests`（15）／`TTSContractTests`（6）；工具条加「朗读」入口；阅读器接朗读与退出停止。**测试**：InkSightApp **417 / 0**（396 ＋ 21），InkSightCore 41/0，iOS Simulator SDK Build complete。**落地（FR-012 原文逐条）**：①**系统语音**——`AVSpeechSynthesizer` ＋ `AVSpeechSynthesisVoice(language: "zh-CN")`，离线、无第三方、无网络请求；②**0.5–2.5 倍速**——`TTSSettings.minRate/maxRate` 常量（测试断言两侧常量与越界**夹取**），`avRate(for:)` 映射到系统 0…1 区间并测「恒在合法区间」；③**定时关闭**——15/30/60 分钟档（`sleepTimerOptions`），到点 `stop()`；④**锁屏可控**——`TTSAudioSession.activatePlaybackCategory()`（`.playback` ＋ `.spokenAudio`）由宿主在朗读前调用；引擎提供**状态与回调**，不擅自改全局音频会话（这是职责边界，不是遗漏）。**工程细节**：①`AVAudioSession` 是 **iOS 专属**（macOS 有 AVFoundation 但没有它），故 `#if os(iOS) && canImport(AVFoundation)` 精确门控——否则 macOS 测试构建直接编译失败（本轮实际踩到并修掉）；②`segment`/`avRate` 标 `nonisolated`（纯静态计算，不该被 `@MainActor` 绑住），以便非 MainActor 测试调用。**朗读范围**：从**当前页字符偏移**开始（续读，不跳回章首），分段按 400 字切、逐段推进 `currentCharOffset`。**诚实空态（未做/待后续）**：**段推进是简化实现**——`speakCurrentSegment` 在调用后立即 `segmentIndex += 1`，**未接 `AVSpeechSynthesizerDelegate.didFinish`**，真实逐段朗读会一次排入全部 utterance（听感上是连续朗读，但 `currentCharOffset` 推进不准）；**锁屏控制中心按钮未接**（`MPRemoteCommandCenter` 的 play/pause 命令未注册，需宿主在 App 层接，待真机）；`TTSAudioSession` **未被任何地方调用**（宿主接线待后续）；朗读**不随翻页自动继续下一章**（单章朗读）；面板语速滑杆 `step: 0.1`，真机手感未校准。
+
+---
 ## 3. 状态索引
 
 ### 3.1 仍开放（客户后续再定）

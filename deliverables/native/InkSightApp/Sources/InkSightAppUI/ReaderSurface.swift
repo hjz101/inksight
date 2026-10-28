@@ -83,6 +83,10 @@ public struct ReaderSurfaceView: View {
     @State private var highlightToast: String?
     /// FR-023：本次阅读开始时刻（退出时算时长上报墨量统计）。
     @State private var sessionStart: Date?
+    /// FR-012：朗读引擎（单例，跨页面保持朗读）。
+    @StateObject private var tts = TTSEngine()
+    /// FR-012：朗读面板是否呈现。
+    @State private var showTTS = false
     /// FR-018 版本对比：对比报告（nil ＝ 未打开）。
     @State private var compareReport: VersionDiff.Report?
     @State private var compareLeftName = ""
@@ -251,7 +255,15 @@ public struct ReaderSurfaceView: View {
                             }
                         },
                         onTOC: { showTOC = true },
-                        onProgress: { showProgress = true }
+                        onProgress: { showProgress = true },
+                        onTTS: {
+                            // FR-012：首次打开时从当前页字符偏移开始朗读
+                            if tts.state == .idle, let live = session.engine {
+                                let offset = live.page(at: session.currentPage)?.anchor.charOffset ?? 0
+                                tts.start(text: live.chapterText, startingOffset: offset)
+                            }
+                            showTTS = true
+                        }
                     )
                     .transition(.identity)   // A 档：显隐直切，不用系统动画
                     }
@@ -270,6 +282,13 @@ public struct ReaderSurfaceView: View {
             OrientationController.shared.lockReaderToPortrait()
             // **FR-023**：记录本次阅读开始时刻（退出时算时长）。
             sessionStart = Date()
+        }
+        // FR-012 朗读面板
+        .overlay {
+            if showTTS {
+                TTSPanel(engine: tts, onClose: { showTTS = false })
+                    .transition(.opacity)
+            }
         }
         // FR-013 划线操作面板：选中一行后弹出（划线/笔记/标签，3 步内完成）
         .overlay {
@@ -460,6 +479,8 @@ public struct ReaderSurfaceView: View {
             session.endSession()
             // **FR-037：退出阅读器解锁方向**（恢复其他界面可旋转）。
             OrientationController.shared.unlockAfterReader()
+            // **FR-012**：退出阅读器停止朗读（会话结束，不留后台朗读）。
+            tts.stop()
             // **FR-023 墨量统计**：上报本次阅读时长（<1 分钟不计，避免噪声）。
             recordReadingSessionIfPossible()
         }

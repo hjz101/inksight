@@ -24,6 +24,8 @@ struct ReaderToolbar: View {
     var onTOC: () -> Void = {}
     /// 打开进度（显示当前章节/页位置并可定位）。
     var onProgress: () -> Void = {}
+    /// FR-012 朗读面板。
+    var onTTS: () -> Void = {}
 
     var body: some View {
         GlassSurface(strength: .l1, interactive: true,
@@ -34,6 +36,7 @@ struct ReaderToolbar: View {
                 toolbarButton("书签", systemImage: "bookmark", action: onBookmark)
                 toolbarButton("换一个版本", systemImage: "arrow.triangle.swap", action: onSwapVersion)
                 toolbarButton("排版", systemImage: "textformat.size", action: onSettings)
+                toolbarButton("朗读", systemImage: "waveform", action: onTTS)
             }
             .padding(.horizontal, 8)
             .frame(maxWidth: .infinity)
