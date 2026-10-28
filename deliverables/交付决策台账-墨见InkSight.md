@@ -650,6 +650,11 @@
 **随附交付登记（D-53 执行 · 开发包 #36）**：新增 `GuardianSession`（`ObservableObject` 单例，`@MainActor`）＋ `GuardianSessionTests`（6）；`MeScreen` 改用共享会话。**测试**：InkSightApp **340 / 0**（334 ＋ 6），InkSightCore 41/0，iOS Simulator SDK Build complete。**闭环掉 D-81／D-83 的遗留**：`guardianProof` 此前是单个视图的 `@State`——换页面即失效，用户要反复验证；现改为 `GuardianSession.shared` 持有凭据，**跨页面共享**，且 `currentProof(now:)` 自动清理过期凭据。**顺带修掉一个真实安全隐患（重要）**：此前 `GuardianVerification` 也挂在 `@State` 上——它是**引用类型**，视图重建时会重新 `init()` 并从磁盘重载凭证，于是 **`failedAttempts` 与 `lockedUntil` 被重置**：反复切换页面即可绕开「5 次失败锁定 60s」。现在验证器住在单例会话里，**失败计数与锁定状态不随视图重建丢失**；新增测试 `testLockoutNotResettableByRequery` 断言「锁定期间即使输入正确也不签发凭据，且再查一次也不会重置」。**为什么 `@MainActor`**：`ObservableObject` 带 `@Published`，作为全局单例被 Swift 6 并发检查拒绝（非 `Sendable` 共享可变状态）；UI 状态本就属主线程，标 `@MainActor` 是正确归属而非绕过。**诚实空态（未做/待后续）**：凭据仍只在**内存**（进程重启即失效，需重新验证）——真机若要"记住已验证"须落盘，但那会削弱安全语义，**刻意不做**；`GuardianSession` 未接 `.onChange(of: scenePhase)` 在后台时主动失效；FR-032 ⑤（家长手动标记适龄）与 ⑦（模式内不产生网络日志）仍未做。
 
 ---
+### D-87　EGG4 短按翻页接线 ＋ 登记一处 PRD／DESIGN 阈值冲突（400ms vs 300ms）
+
+**随附交付登记（D-53 执行 · 开发包 #37）**：`ReaderSurface` 补齐 EGG4 短按翻页分支（`dogEarHoldTask` 延时判定 ＋ `advancePageInDogEarZone`）；`DogEarGestureResolver` 常量处写明阈值冲突与采纳依据 ＋ `DogEarShortPressWiringTests`（4）。**测试**：InkSightApp **344 / 0**（340 ＋ 4），InkSightCore 41/0，iOS Simulator SDK Build complete。**闭环掉 D-85 的空态**：此前 `resolveTap` 的短按翻页分支**未接线**——`DragGesture.onEnded` 无法单独区分单击与长按。现改为：按下时起一个 **300ms 延时任务**，提前抬手 → 取消任务 → 判为**短按翻页**（该角不留死区，与全屏右侧翻页一致）；到时仍在按 → 进入**折角跟手**。翻页做页边界收敛（`min(currentPage+1, pageCount-1)`，末页不越界）。**发现并登记一处规范冲突（本轮重要产出）**：PRD FR-030 的 EGG4 行写「阅读页**长按页角 400ms**」，而 DESIGN §5 ④「阅读器右下双判定热区（**规范正文，不只放验收**）」写「按住 **≥300ms** → 折角跟手」。**这不是笔误级的措辞差异，而是决定该角在 300–400ms 区间行为的分界**：按 400ms 实现，则 300–400ms 抬手既不算翻页也不进折角，形成**手感死区**。**采纳 300ms**，依据三条：①DESIGN 该节自述为规范正文，且把「<300ms 翻页」与「≥300ms 跟手」**绑成一对**，改一个必然要改另一个；②PRD 的 400ms 出现在 EGG4 注册表行，描述的是折角彩蛋的**单一动作**，未涉及与翻页的分界；③双判定是更细且后出的规范，**它才是决定"这角翻不翻页"的那一条**。**处理方式**：**不自行修改 PRD**（PRD 是需求真源），在源码常量处与台账同时登记该冲突及采纳依据，**列为本项目待需求方确认项**。**诚实空态（未做/待后续）**：触感 `.light` 仍未真正调用（需 `UIImpactFeedbackGenerator`，跨平台不能直接引 UIKit，**待真机**）；折角**视觉图形未绘制**（状态与书签副作用已通）；延时任务用 `Task.sleep` 判定长按，**真机手感需校准**（`Task.sleep` 在负载下有调度抖动，严格实现宜用 `LongPressGesture` 的 `minimumDuration` 由系统驱动）；PRD 的「折角 24→60pt / 保持 3s」两项目前**均未实现**（视觉与保持态），故本轮只算"判定与副作用"落地。
+
+---
 ## 3. 状态索引
 
 ### 3.1 仍开放（客户后续再定）

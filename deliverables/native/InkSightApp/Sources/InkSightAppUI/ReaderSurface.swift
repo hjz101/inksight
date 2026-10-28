@@ -64,6 +64,8 @@ public struct ReaderSurfaceView: View {
     @State private var dogEarTranslation: CGFloat = 0
     /// EGG4 折角：吸附后的静态折角（写书签成功时置为 true）。
     @State private var dogEarSnapped = false
+    /// EGG4：长按判定延时任务（到 300ms 才真正进入折角；提前抬手则取消 → 判为短按翻页）。
+    @State private var dogEarHoldTask: Task<Void, Never>?
     /// 目录是否呈现（`目录` 工具条入口）。
     @State private var showTOC = false
     /// 进度是否呈现（`进度` 工具条入口）。
@@ -124,16 +126,35 @@ public struct ReaderSurfaceView: View {
                                     guard DogEarGestureResolver.isInHotZone(
                                         value.startLocation,
                                         containerSize: ReaderLayout.shared.containerSize) else { return }
-                                    if !dogEarActive {
-                                        dogEarActive = true
-                                        glassPresentation = .gesture
-                                        // 进入折角：一次 .light（宣告"进入折角"）
-                                        MotionCoordinator.shared.perform(.egg4DogEar) {}
+                                    if dogEarHoldTask == nil && !dogEarActive {
+                                        // 按下：**先不判定**，起一个 300ms 延时；
+                                        // 提前抬手 → 取消延时 → 按短按处理（翻页，该角不留死区）。
+                                        dogEarHoldTask = Task { @MainActor in
+                                            try? await Task.sleep(
+                                                for: .seconds(DogEarGestureResolver.holdThresholdSeconds))
+                                            guard !Task.isCancelled else { return }
+                                            // 到时仍在按 → 进入折角跟手（一次 .light 宣告"进入折角"）
+                                            dogEarActive = true
+                                            glassPresentation = .gesture
+                                            MotionCoordinator.shared.perform(.egg4DogEar) {}
+                                        }
                                     }
-                                    dogEarTranslation = value.translation.height
+                                    if dogEarActive {
+                                        dogEarTranslation = value.translation.height
+                                    }
                                 }
                                 .onEnded { _ in
-                                    guard dogEarActive else { return }
+                                    // 取消延时任务（无论是否已进入折角）
+                                    dogEarHoldTask?.cancel()
+                                    dogEarHoldTask = nil
+
+                                    guard dogEarActive else {
+                                        // **短按（<300ms 抬手）→ 翻页**：
+                                        // 该角与"全屏右侧翻页"一致，不留死区。
+                                        advancePageInDogEarZone()
+                                        return
+                                    }
+
                                     let outcome = DogEarGestureResolver.resolveRelease(
                                         verticalTranslation: dogEarTranslation)
                                     if outcome.writesBookmark {
@@ -141,8 +162,6 @@ public struct ReaderSurfaceView: View {
                                         // EGG4 的 triggerPolicy 是 `.dropTrigger`——关闭态下
                                         // 连触发一起短路（书签不写），这正是"彩蛋关掉后功能由
                                         // 工具条「书签」承担"的等价路径设计。
-                                        // 若把 addBookmark 写在闭包外，关闭态仍会写书签，
-                                        // 就破坏了 dropTrigger 语义（关闭态仍执行彩蛋逻辑）。
                                         MotionCoordinator.shared.perform(.egg4DogEar) {
                                             dogEarSnapped = true
                                             addBookmarkAtCurrentPage()
@@ -380,6 +399,17 @@ public struct ReaderSurfaceView: View {
         let thirdW = size.width / 3, thirdH = size.height / 3
         return location.x >= thirdW && location.x <= thirdW * 2
             && location.y >= thirdH && location.y <= thirdH * 2
+    }
+
+    /// 右下热区短按 → 翻页（EGG4 双判定的"翻页"一侧）。
+    ///
+    /// 与全屏右侧翻页一致：**该角不留死区**（DESIGN §5 ④ 原文）。
+    /// 页边界收敛：末页不前进；首页不后退。
+    private func advancePageInDogEarZone() {
+        guard let live = session.engine else { return }
+        let next = min(session.currentPage + 1, max(0, live.pageCount - 1))
+        guard next != session.currentPage else { return }
+        session.currentPage = next
     }
 
     // MARK: - 目录（按章节锚点跳转）

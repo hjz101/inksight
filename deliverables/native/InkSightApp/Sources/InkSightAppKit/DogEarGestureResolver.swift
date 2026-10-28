@@ -20,6 +20,17 @@ public enum DogEarGestureResolver {
     /// 热区边长（pt）。
     public static let hotZoneSize: CGFloat = 44
     /// 长按阈值（秒）：≥ 此值进入折角跟手。
+    ///
+    /// **规范冲突（如实登记，D-87）**：PRD FR-030 EGG4 行写「长按页角 **400ms**」，
+    /// DESIGN §5 ④「阅读器右下双判定热区（规范正文，不只放验收）」写「**≥300ms**」。
+    /// 采纳 **300ms**，依据：
+    /// 1. DESIGN 该节自述为「规范正文，不只放验收」，且是**双判定**的完整表述
+    ///    （把 300ms 与"<300ms 翻页"绑成一对，改一个必然要改另一个）；
+    /// 2. PRD 的 400ms 出现在 EGG4 注册表行，描述的是「折角彩蛋」的**单一动作**，
+    ///    未涉及与翻页的分界；
+    /// 3. 双判定是后出的、更细的规范，且**它才是决定"这角翻不翻页"的那一条**
+    ///    （按 400ms 做会让 300–400ms 区间既非翻页也不进折角，形成手感死区）。
+    /// 该冲突**不自行改 PRD**（PRD 是需求真源），已在台账 D-87 记为待需求方确认项。
     public static let holdThresholdSeconds: TimeInterval = 0.300
     /// 吸附阈值（pt）：松手位移 > 此值才吸附并写书签。
     public static let snapThresholdPoints: CGFloat = 12

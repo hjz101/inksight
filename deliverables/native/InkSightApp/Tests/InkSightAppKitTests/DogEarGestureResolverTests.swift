@@ -87,3 +87,57 @@ final class DogEarGestureResolverTests: XCTestCase {
         XCTAssertTrue(DogEarGestureResolver.Outcome.snapAndBookmark.writesBookmark)
     }
 }
+
+/// EGG4 短按翻页分支的接线契约（`DragGesture` + 延时任务组合）。
+final class DogEarShortPressWiringTests: XCTestCase {
+
+    private func readerSource() throws -> String {
+        let base = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Sources/InkSightAppUI")
+        let raw = try String(contentsOf: base.appendingPathComponent("ReaderSurface.swift"),
+                             encoding: .utf8)
+        return raw.split(separator: "\n", omittingEmptySubsequences: false)
+            .map(String.init)
+            .filter {
+                let t = $0.trimmingCharacters(in: .whitespaces)
+                return !t.hasPrefix("//") && !t.hasPrefix("///") && !t.hasPrefix("*")
+            }
+            .joined(separator: "\n")
+    }
+
+    /// 短按分支已接线（`advancePageInDogEarZone`）。
+    func testShortPressAdvancesPage() throws {
+        let src = try readerSource()
+        XCTAssertTrue(src.contains("advancePageInDogEarZone"),
+                      "短按抬手须走翻页分支（该角不留死区）")
+    }
+
+    /// 用延时任务区分长按/短按（`DragGesture` 无法单独区分）。
+    func testUsesHoldDelayTask() throws {
+        let src = try readerSource()
+        XCTAssertTrue(src.contains("dogEarHoldTask"),
+                      "须用延时任务在 300ms 处判定长按")
+        XCTAssertTrue(src.contains("Task.sleep"), "须有 300ms 延时")
+        XCTAssertTrue(src.contains(".cancel()"), "抬手须取消延时任务")
+    }
+
+    /// 翻页在页边界收敛（末页不越界）。
+    func testPageAdvanceClampsAtBoundary() throws {
+        let src = try readerSource()
+        guard let range = src.range(of: "private func advancePageInDogEarZone") else {
+            return XCTFail("找不到 advancePageInDogEarZone")
+        }
+        let body = String(src[range.lowerBound...].prefix(400))
+        XCTAssertTrue(body.contains("min("), "前进须做上界收敛")
+        XCTAssertTrue(body.contains("pageCount"), "须以 pageCount 为界")
+    }
+
+    /// 阈值采纳 300ms（DESIGN 双判定正文），且**冲突已在源码登记**。
+    func testThresholdAdoptedIsDesignSide() {
+        XCTAssertEqual(DogEarGestureResolver.holdThresholdSeconds, 0.300,
+                       "采纳 DESIGN 的 300ms（双判定正文）")
+    }
+}
