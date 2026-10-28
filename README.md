@@ -59,7 +59,7 @@
 
 | 验证项 | 结果 |
 |---|---|
-| `InkSightApp` 单元测试 | **344 / 0**（退出码 0） |
+| `InkSightApp` 单元测试 | **378 / 0**（退出码 0） |
 | `InkSightCore` 单元测试 | **41 / 0**（退出码 0） |
 | iOS 26.5 Simulator SDK 真实编译 | **Build complete**（退出码 0） |
 | FR-031 跨源零位移 | 逐行最差 delta **0.0 pt**（判据 ≤0.5 pt；`maxOverflow` 独立判据见 D-59） |
@@ -97,4 +97,4 @@ swift build --sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSim
 
 ---
 
-**交付决策台账**：`deliverables/交付决策台账-墨见InkSight.md`（D-01～D-87），记录每一次裁定、每一次随附交付登记与每一处主理人独立复核。
+**交付决策台账**：`deliverables/交付决策台账-墨见InkSight.md`（D-01～D-91），记录每一次裁定、每一次随附交付登记与每一处主理人独立复核。
