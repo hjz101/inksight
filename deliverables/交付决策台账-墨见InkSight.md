@@ -553,6 +553,11 @@
 **随附交付登记（D-53 执行 · 开发包 #18）**：新增 `Highlight`（模型）／`HighlightsStore`（仓库）／`HighlightsStoreTests`（6 个）。**测试**：InkSightApp **177 / 0**（D-66 后 171 ＋ 本包新增 6），InkSightCore 41/0 维持。**落地**：①划线锚点**定位铁律同源**——`charOffset + length + fingerprint`，结构上无 `pageIndex`（测试断言落盘 JSON 无该键）②选中文本提取 UTF-16 口径（与 `PageAnchor`/`ReadingProgress` 同源），越界返回 nil ③仓库支持增删查、按书/章筛选（偏移排序）、按标签聚合（FR-022 跨书聚合基础）④落盘经 `Persist` 门面（`.notes` payload），笔记属用户数据可备份（`excludedFromBackup = false`）。**诚实空态（本包未做/待后续）**：划线 UI 未接（阅读器长按选句交互待 UI 包）；笔记导出（FR-025 已含笔记字段，`BackupPayload` 暂未纳入 Highlight，待后续）；标签管理界面未做。
 
 ---
+### D-68　墨迹 Tab（FR-013 划线入口 ＋ FR-022 标签化笔记）UI 落地；Tab 从 4 补为 5
+
+**随附交付登记（D-53 执行 · 开发包 #19）**：新增 `NotesScreen`（墨迹 Tab）；`RootTabView` 补第 5 个 Tab（墨迹，插在书架与墨量之间）；`Highlight` 加 `Hashable`。**测试**：InkSightApp **177 / 0**（无新增单测，UI 层；Kit 层已由 D-67 覆盖），InkSightCore 41/0，iOS Simulator SDK Build complete，跨文档一致性 PASS 67 / FAIL 0。**落地**：①**Tab 补齐**——PRD §2.0 定义的 5 个 Tab（发现/书架/墨迹/墨量/我）此前只有 4 个，缺墨迹；本轮补上 ②墨迹 Tab 展示划线列表（选中文本快照高亮底纹 + 想法 + 章号 + 标签）③**标签筛选条**（FR-022 一个标签跨书聚合：全部/按标签过滤）④诚实空态「还没有划线，阅读时长按选中句子即可划线」——不伪装有内容。**诚实空态（本包未做/待后续）**：**划线创建交互未接**——阅读器是 Canvas 自绘排版（FR-031 零位移），长按选句需要「文本→坐标」映射或引入 TextKit 容器，属架构级改动，本轮不做；墨迹 Tab 当前展示 D-67 Kit 层已存的数据（可手工注入/测试构造），真实划线由用户流程产生前为空态；笔记导出（FR-025 BackupPayload 未纳入 Highlight）待后续。
+
+---
 ## 3. 状态索引
 
 ### 3.1 仍开放（客户后续再定）

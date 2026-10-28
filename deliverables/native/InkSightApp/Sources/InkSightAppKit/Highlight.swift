@@ -9,7 +9,7 @@ import InkSightCore
 /// - `length`：划线覆盖的 UTF-16 长度；
 /// - `fingerprint`：划线所在段落指纹（换文件/净化后对齐兜底）。
 /// 结构上**没有 `pageIndex` 字段**——页码是派生量，落盘即埋雷（定位铁律）。
-public struct Highlight: Codable, Equatable, Sendable {
+public struct Highlight: Codable, Equatable, Hashable, Sendable {
     public let bookID: String
     public let chapterID: Int
     public let charOffset: Int

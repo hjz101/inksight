@@ -1,7 +1,7 @@
 import SwiftUI
 import InkSightAppKit
 
-// MARK: - 4 Tab 骨架（App 入口在 executableTarget InkSightAppMain；
+// MARK: - 5 Tab 骨架（App 入口在 executableTarget InkSightAppMain；
 // 库目标里的 @main 会与 swift test 的 runner _main 重复链接——SPM 链接层事实）
 
 public struct RootTabView: View {
@@ -14,6 +14,8 @@ public struct RootTabView: View {
     private let bookShelf: BookShelfStore
     /// 本地检索仓库（FR-024a）：App 级单例（索引跨页面复用）；初始化失败则为 nil（诚实空态）。
     private let searchStore: LocalSearchStore?
+    /// 划线/笔记仓库（FR-013）：App 级共享。
+    private let highlightsStore: HighlightsStore?
     @State private var selectedTab = 0
 
     /// 系统「减弱动态效果」——**优先级最高**：开启时任何动效都不播（但**功能不减**）。
@@ -23,16 +25,19 @@ public struct RootTabView: View {
     public init(ageState: AgeGateState, variant: BuildVariant, onOpenReader: @escaping () -> Void) {
         // FR-024a：App 级共享本地 FTS 索引；创建失败则 nil，检索页显示诚实空态。
         self.init(ageState: ageState, variant: variant, onOpenReader: onOpenReader,
-                  bookShelf: BookShelfStore(), searchStore: try? LocalSearchStore())
+                  bookShelf: BookShelfStore(), searchStore: try? LocalSearchStore(),
+                  highlightsStore: HighlightsStore())
     }
 
     init(ageState: AgeGateState, variant: BuildVariant, onOpenReader: @escaping () -> Void,
-         bookShelf: BookShelfStore, searchStore: LocalSearchStore? = nil) {
+         bookShelf: BookShelfStore, searchStore: LocalSearchStore? = nil,
+         highlightsStore: HighlightsStore? = nil) {
         self.ageState = ageState
         self.variant = variant
         self.onOpenReader = onOpenReader
         self.bookShelf = bookShelf
         self.searchStore = searchStore
+        self.highlightsStore = highlightsStore
     }
 
     public var body: some View {
@@ -43,12 +48,15 @@ public struct RootTabView: View {
             ShelfScreen(bookShelf: bookShelf, onOpenReader: onOpenReader, searchStore: searchStore)
                 .tabItem { Label("书架", systemImage: "books.vertical") }
                 .tag(1)
+            NotesScreen(highlightsStore: highlightsStore)
+                .tabItem { Label("墨迹", systemImage: "highlighter") }
+                .tag(2)
             InkScreen(bookShelf: bookShelf, searchStore: searchStore)
                 .tabItem { Label("墨量", systemImage: "drop") }
-                .tag(2)
+                .tag(3)
             MeScreen(ageState: ageState, variant: variant, bookShelf: bookShelf)
                 .tabItem { Label("我", systemImage: "person") }
-                .tag(3)
+                .tag(4)
         }
         .onReceive(NotificationCenter.default.publisher(for: .readerNavigationRequested)) { _ in
             // 检索结果来自墨量 Tab：先切到书架，ShelfScreen onAppear/通知消费请求。
