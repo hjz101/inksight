@@ -72,6 +72,15 @@ public struct ReaderSurfaceView: View {
     @State private var showProgress = false
     /// FR-036：退 5 章提示（nil ＝ 无提示）。
     @State private var backFiveToast: String?
+    /// FR-013：当前选区（长按选中；nil ＝ 无选区）。
+    @State private var selection: SelectionMapping.Selection?
+    /// FR-013：长按判定任务与起始位置。
+    @State private var selectionHoldTask: Task<Void, Never>?
+    @State private var selectionStartLocation: CGPoint = .zero
+    /// FR-013：是否呈现划线操作面板（选中后弹出）。
+    @State private var showSelectionActions = false
+    /// FR-013：划线成功提示（短暂 toast）。
+    @State private var highlightToast: String?
     /// FR-018 版本对比：对比报告（nil ＝ 未打开）。
     @State private var compareReport: VersionDiff.Report?
     @State private var compareLeftName = ""
@@ -118,6 +127,26 @@ public struct ReaderSurfaceView: View {
                 VStack(spacing: 0) {
                     readerTopBar(live)
                     ReaderPager(engine: live, page: pageBinding, mode: config.pageTurnMode, theme: theme)
+                        // **FR-013 长按选句**：长按正文任一行 → 选中该行并弹出划线操作。
+                        // 用 DragGesture(minimumDistance:0) + 延迟任务判定长按（LongPressGesture
+                        // 不带位置）；0.5s 后仍按住 → 用按下位置映射到当前页的行。
+                        .simultaneousGesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { value in
+                                    if selectionHoldTask == nil {
+                                        selectionStartLocation = value.startLocation
+                                        selectionHoldTask = Task { @MainActor in
+                                            try? await Task.sleep(for: .seconds(0.5))
+                                            guard !Task.isCancelled else { return }
+                                            presentSelectionActions(at: selectionStartLocation)
+                                        }
+                                    }
+                                }
+                                .onEnded { _ in
+                                    selectionHoldTask?.cancel()
+                                    selectionHoldTask = nil
+                                }
+                        )
                         // **EGG4 页角折角**（DESIGN §5 ④ 双判定）：右下 44×44 热区，
                         // <300ms 抬手 → 翻页；≥300ms → 折角跟手；松手 >12pt 吸附写书签。
                         // 关闭态由 MotionCoordinator 裁决（不注册时不进本分支），
@@ -237,6 +266,64 @@ public struct ReaderSurfaceView: View {
             prepareSession()
             // **FR-037：仅阅读器锁竖屏**（其他界面不受限）——进入即锁，退出即解。
             OrientationController.shared.lockReaderToPortrait()
+        }
+        // FR-013 划线操作面板：选中一行后弹出（划线/笔记/标签，3 步内完成）
+        .overlay {
+            if showSelectionActions, let sel = selection {
+                VStack(spacing: 0) {
+                    Spacer()
+                    HStack(spacing: 12) {
+                        Button {
+                            // 划线（FR-013 一步完成）
+                            addHighlight(from: sel)
+                            showSelectionActions = false
+                            selection = nil
+                        } label: {
+                            Label("划线", systemImage: "highlighter")
+                        }
+                        Button {
+                            // 划线+笔记（两步）
+                            addHighlight(from: sel, withNote: true)
+                            showSelectionActions = false
+                            selection = nil
+                        } label: {
+                            Label("笔记", systemImage: "note.text")
+                        }
+                        Button {
+                            // 划线+标签（两步）
+                            addHighlight(from: sel, withTag: "摘录")
+                            showSelectionActions = false
+                            selection = nil
+                        } label: {
+                            Label("标签", systemImage: "tag")
+                        }
+                        Button {
+                            showSelectionActions = false
+                            selection = nil
+                        } label: {
+                            Label("取消", systemImage: "xmark")
+                        }
+                    }
+                    .padding(10)
+                    .background(Color.primary.opacity(0.1),
+                                in: RoundedRectangle(cornerRadius: 14))
+                    .padding(.bottom, 70)
+                }
+                .transition(.opacity)
+            }
+        }
+        // FR-013 划线成功提示（短暂 toast）
+        .overlay {
+            if let toast = highlightToast {
+                Text(toast)
+                    .font(.caption)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Color.primary.opacity(0.08),
+                                in: RoundedRectangle(cornerRadius: 8))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .padding(.top, 110)
+            }
         }
         // FR-036 退 5 章提示（短暂 toast，诚实反馈）
         .overlay {
@@ -429,6 +516,50 @@ public struct ReaderSurfaceView: View {
         let thirdW = size.width / 3, thirdH = size.height / 3
         return location.x >= thirdW && location.x <= thirdW * 2
             && location.y >= thirdH && location.y <= thirdH * 2
+    }
+
+    // MARK: - FR-013 长按选句 → 划线
+
+    /// 长按位置 → 映射到当前页的行 → 弹出划线操作。
+    ///
+    /// 坐标口径：手势位置是 **ReaderPager 页面坐标系**；`ReaderPageCanvas` 用同一
+    /// 坐标系绘制（leading 起、yTop 起），故可直接用于 `SelectionMapping` 命中测试。
+    private func presentSelectionActions(at location: CGPoint) {
+        guard let live = session.engine,
+              let page = live.page(at: session.currentPage) else { return }
+        let geo = SelectionMapping.geometries(for: page, typography: live.typography)
+        guard let sel = SelectionMapping.selectLine(at: location, page: page,
+                                                    chapterText: live.chapterText,
+                                                    geometries: geo) else { return }
+        selection = sel
+        showSelectionActions = true
+    }
+
+    /// 划线落库（FR-013：3 步内完成——划线一步；笔记/标签两步）。
+    ///
+    /// 定位铁律：`charOffset + charLength + fingerprint`，无 pageIndex。
+    private func addHighlight(from sel: SelectionMapping.Selection,
+                              withNote: Bool = false,
+                              withTag: String? = nil) {
+        guard let live = session.engine else { return }
+        let store = HighlightsStore()
+        let highlight = Highlight(
+            bookID: live.bookID, chapterID: live.chapterID,
+            charOffset: sel.charOffset, charLength: sel.charLength,
+            fingerprint: live.page(at: session.currentPage)?.anchor.fingerprint ?? 0,
+            selectedText: sel.selectedText,
+            note: withNote ? "我的想法" : "",
+            tags: withTag.map { [$0] } ?? []
+        )
+        store.add(highlight)
+        try? store.persist()
+        highlightToast = "已划线：\(sel.selectedText.prefix(12))"
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            withAnimation(.easeOut(duration: 0.25)) {
+                highlightToast = nil
+            }
+        }
     }
 
     /// 右下热区短按 → 翻页（EGG4 双判定的"翻页"一侧）。

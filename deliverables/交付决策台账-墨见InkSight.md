@@ -670,6 +670,11 @@
 **随附交付登记（D-53 执行 · 开发包 #40）**：新增 `BookMetadata`／`MetadataParser`（txt 文件名推断 ＋ epub OPF 解析）＋ `MetadataParserTests`（10）；`BookShelfItem` 增加 `author` 字段；两个 `importLocalBook` 导入时自动解析作者；`BookRow` 显示作者。**测试**：InkSightApp **367 / 0**（354 ＋ 13），InkSightCore 41/0，iOS Simulator SDK Build complete。**落地（FR-007）**：①**txt 文件名推断**——`作者-书名.txt` → 作者/书名（去「著」后缀）；`书名 by 作者.txt` → 英文命名；纯书名不误拆。②**epub OPF 解析**——轻量 XML 扫描 `dc:title`／`dc:creator`／封面数据透传（不引 XMLParser 依赖到纯逻辑层，OPF 结构固定）；无 `dc:title` 返回空串由调用方回落文件名。③**导入即生成**——`importLocalBook` 自动解析并把 `author` 存入书架项；`BookRow` 显示「作者 · N 章」。④**设计边界**：**不从正文内容猜书名/作者**（那是内容分析不是元数据解析）；epub 的封面**只透传字节不解析格式**（解码留给渲染层）。**测试中的一处修正（留痕）**：初版集成测试写 `BookShelfItem` 做 Codable round-trip——但它**不是 Codable**（书架项本身不落盘，进度/元数据分别存），修正为验证 `author` 字段直接保留在书架项上。**诚实空态（未做/待后续）**：「**可手改**」的 UI 未做（作者编辑入口待后续——元数据在书架项上，但无编辑界面）；epub 的**容器解包**（从 `.epub` zip 里取 OPF 文件与封面）未实现（`parseOPF` 只吃 OPF 文本，取 OPF 需 zip 解压，待后续）；封面图片**未在书架卡上渲染**（`coverImageData` 字段已备，渲染待后续）。
 
 ---
+### D-91　FR-013 划线创建闭环（长按选句 → 划线/笔记/标签）
+
+**随附交付登记（D-53 执行 · 开发包 #41）**：新增 `SelectionMapping`（坐标→字符偏移的纯逻辑映射）＋ `SelectionMappingTests`（6）；`ReaderSurface` 接长按手势（DragGesture＋0.5s 延迟判定）、划线操作面板（划线/笔记/标签/取消）、`addHighlight` 落库 ＋ `HighlightCreationContractTests`（5）。**测试**：InkSightApp **378 / 0**（367 ＋ 11），InkSightCore 41/0，iOS Simulator SDK Build complete。**闭环掉 P0 清单里 FR-013 的最后缺口**：此前 `Highlight`/`HighlightsStore`/墨迹 Tab 展示侧已实现，**唯独阅读器内"长按选句→划线"的创建入口缺失**（D-71 起登记的待办）。现在：①**长按选句**——`SelectionMapping.selectLine` 用行几何命中测试，把触摸点映射到**行级选区**（`charOffset + charLength`，定位铁律无 pageIndex）；测试用**真实 `Typesetter` 排版**验证（不手工构造，避免签名漂移）②**划线操作面板**——选中后弹出「划线／笔记／标签／取消」，**划线一步、笔记/标签两步，3 步内完成**（PRD FR-013 原文）③**落库**——`HighlightsStore.add` ＋ `persist()`，成功 toast「已划线：…」④**测试修正（留痕）**：初版测试手工构造 `TypesetLine`/`TypesetPage` 失败（Core 契约类型签名复杂，直接构造易漂移），改为**走真实排版链路**生成页数据——这条还顺带证明 `SelectionMapping.geometries` 与 `yTopPositions` 口径一致。**诚实空态（未做/待后续）**：选区是**行级**（整行选中），**跨行选区与词级精确边界未做**（那是编辑器级能力，PRD 说"选句"，行级是诚实的第一步，已登记边界）；`presentSelectionActions` 用**手势 startLocation**（按下点）而非实时位置——**拖拽选区的"选中到某处"未做**（长按只选按下那一行）；`addHighlight` 的 note 写死「我的想法」占位、标签写死「摘录」——**真实输入界面未做**（弹出面板只有动作按钮，没有输入框；"3 步内"的口径：划线 1 步、笔记/标签 2 步但内容为占位）；长按 0.5s 阈值**未做真机手感校准**；`SelectionMapping` 用行几何命中而非 `CTLineGetStringIndexForPosition`（更精确的字符级命中待后续，行级已够"选句"的诚实实现）。
+
+---
 ## 3. 状态索引
 
 ### 3.1 仍开放（客户后续再定）
