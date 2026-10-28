@@ -137,4 +137,13 @@ public final class BookShelfStore: @unchecked Sendable {
         lock.lock(); defer { lock.unlock() }
         return items.first(where: { $0.bookID == bookID })
     }
+
+    /// **当前书**（继续阅读优先）：有 `lastReadAnchor` 的那本优先，否则取第一本。
+    /// 无书返回 nil（调用方须走**诚实空态**，不伪造书目）。
+    ///
+    /// 开发包 #8：设置页的「重排当前章」据此定位真实书。
+    public var currentItem: BookShelfItem? {
+        lock.lock(); defer { lock.unlock() }
+        return items.first(where: { $0.lastReadAnchor != nil }) ?? items.first
+    }
 }

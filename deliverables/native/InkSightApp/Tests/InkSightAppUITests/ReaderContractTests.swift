@@ -120,6 +120,16 @@ final class ReaderContractTests: XCTestCase {
         XCTAssertFalse(meScreenSrc.contains("glassEffect"), "MeScreen 不得调用 .glassEffect")
     }
 
+    /// 开发包 #8：阅读器须有**明确的公开换排版入口**（源码级断言，去注释后扫描）。
+    /// 换排版 → 落点按同一 `charOffset` 重新二分定位，是「机制本体接进真实链路」的公开门面。
+    func testReaderSurfaceHasPublicApplyTypographyEntry() throws {
+        let url = try sourceURL("ReaderSurface.swift", inUI: true)
+        let src = stripComments(try String(contentsOf: url, encoding: .utf8))
+        XCTAssertTrue(src.contains("public func applyTypography("),
+                      "阅读器须提供公开的换排版入口（开发包 #8）")
+        XCTAssertTrue(src.contains("ReaderSession"), "阅读器须经会话承载可替换的引擎")
+    }
+
     // MARK: - 源码路径 / 注释剥离（测试工具）
 
     private func sourceURL(_ name: String, inUI: Bool) throws -> URL {

@@ -20,8 +20,12 @@ struct RootView: View {
 
     /// 演示阅读引擎：注入公有领域示例章节（确定性 Demo 路径，不走真实文件导入）。
     /// 静态初始化一次，避免每次 body 重算排版。
+    ///
+    /// 开发包 #8：**按持久化排版预设排版**（用户改过字号/行高后，示例书同样按新预设渲染；
+    /// 若预设与引擎当前排版不同，`ReaderSurfaceView` 会走重排链路，不静默沿用旧排版）。
     private static let sampleEngine = ReaderEngine(
-        bookID: SampleChapter.bookID, chapterID: SampleChapter.chapterID, chapterText: SampleChapter.text
+        bookID: SampleChapter.bookID, chapterID: SampleChapter.chapterID, chapterText: SampleChapter.text,
+        typography: TypographyPresetStore().load()
     )
 
     var body: some View {

@@ -62,6 +62,16 @@ public final class PaginationCoordinator: @unchecked Sendable {
     public let pageAnchorCache: PageAnchorCache
     public let ctFrameCache: CTFrameCache
 
+    /// **App 级单例**（开发包 #8）。
+    ///
+    /// 理由：`TypographySignature` 全局可比，但 `PageAnchorCache` / `CTFrameCache` 挂在
+    /// **协调器实例**上——两个实例＝两套缓存＝同一本书在设置页与阅读器各排一遍，
+    /// 缓存互不命中（白排一遍），且 NFR-03 的内存预算按实例翻倍。
+    /// 故运行时**必须共用同一实例**（设置页与阅读器）。
+    ///
+    /// 测试请用**独立实例**（`PaginationCoordinator()`），避免跨用例污染。
+    public static let shared = PaginationCoordinator()
+
     private let lock = NSLock()
     /// 当前生效的排版签名（nil 表示尚未应用过）。`wouldInvalidate` 以此为基准。
     private var _currentSignature: TypographySignature?

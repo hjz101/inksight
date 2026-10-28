@@ -177,10 +177,16 @@ struct ShelfScreen: View {
     }
 
     /// 打开某书：取 lastReadAnchor 对应章（无则首章）文本 → 构建引擎 → 呈现。
+    ///
+    /// 开发包 #8：**按持久化排版预设排版**（`TypographyPresetStore`）——
+    /// 用户在「我」页改过字号/行高后，打开书即按新预设渲染（若与引擎当前排版不同，
+    /// `ReaderSurfaceView` 会走重排链路，不静默沿用旧排版）。
     private func openBook(_ item: BookShelfItem) {
         let chapterIndex = min(item.lastReadAnchor?.chapterID ?? 0, max(0, item.chapters.count - 1))
         guard let text = bookShelf.chapterText(for: item, chapterIndex: chapterIndex) else { return }
-        activeEngine = ReaderEngine(bookID: item.bookID, chapterID: chapterIndex, chapterText: text)
+        let typography = TypographyPresetStore().load()
+        activeEngine = ReaderEngine(bookID: item.bookID, chapterID: chapterIndex, chapterText: text,
+                                    typography: typography)
     }
 
     /// 处理导入结果：取消则不产生条目（诚实）；成功则导入并立即打开首章（演示闭环）。
@@ -248,18 +254,28 @@ struct MeScreen: View {
     let ageState: AgeGateState
     let variant: BuildVariant
 
+    /// 书架仓库（开发包 #8：重排作用于**当前真实书**；nil ＝ 无书 → 诚实空态）。
+    let bookShelf: BookShelfStore?
+
     /// 当前排版预设：由持久化存储加载（首次为 `ReaderTypography.default`），改动即时落盘。
     @State private var preset: ReaderTypography
     /// 动效开关（FR-030 原文②）：全局总关 ＋ 每 ID 一行独立开关；由持久化存储加载。
     @State private var motionSettings: MotionSettings
-    /// 分页协调器（演示用，持有跨点击的当前签名，以演示「旧→新」作废链路）。
-    @State private var coordinator = PaginationCoordinator()
-    /// 最近一次重分页报告（仅界面呈现；机制链路真实发生）。
-    @State private var lastReport: String = ""
+    /// 当前书的重排会话（持有协调器；跨点击复用签名 → 可观察「排版未变／已重排」）。
+    @State private var bookSession: ReaderSession?
+    /// 最近一次重排的用户可读反馈（诚实空态：无可重排内容时如实说明，**不伪装成功**）。
+    @State private var repaginationFeedback: String = ""
+    /// 后台重排状态模型（调度在后台线程、状态在主线程呈现）。
+    @StateObject private var backgroundModel = RepaginationStatusModel()
 
-    init(ageState: AgeGateState, variant: BuildVariant) {
+    /// 场景相位：`scenePhase != .active` 立即停后台重排
+    /// （对齐 NFR-04「`scenePhase != .active` 立即 `cancelAllTasks()`」的纪律精神）。
+    @Environment(\.scenePhase) private var scenePhase
+
+    init(ageState: AgeGateState, variant: BuildVariant, bookShelf: BookShelfStore? = nil) {
         self.ageState = ageState
         self.variant = variant
+        self.bookShelf = bookShelf
         _preset = State(initialValue: TypographyPresetStore().load())
         _motionSettings = State(initialValue: MotionSettingsStore().load())
     }
@@ -277,10 +293,11 @@ struct MeScreen: View {
                 Text("切换年龄态不存在任何界面控件——状态由系统分龄决定，保守方向出错是少保护。")
             }
 
-            // 设置入口（开发包 #6/#7）：受控项经 AgeGateMatrix.cell(.settingsPath) 派生可见性；
+            // 设置入口（开发包 #6/#7/#8）：受控项经 AgeGateMatrix.cell(.settingsPath) 派生可见性；
             // .absent 态结构上不生成（沉默，非隐藏）。排版预设已持久化，动效开关已持久化，无年龄切换控件。
             if AgeGateMatrix.cell(state: ageState, variant: variant).settingsPath != .absent {
                 settingsSection
+                repaginationSection
                 motionSection
             }
         }
@@ -289,6 +306,10 @@ struct MeScreen: View {
         // 进入设置页时把持久化的动效开关应用到唯一动画入口
         // （否则「持久化」只是落盘不生效＝不诚实）
         .onAppear { MotionCoordinator.shared.apply(motionSettings) }
+        // `scenePhase != .active` 立即停后台重排（NFR-04 纪律精神）
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { backgroundModel.cancel() }
+        }
     }
 
     /// 设置（持久化排版预设）：真实可编辑，改动经 `.onChange` 即时落盘。
@@ -333,16 +354,8 @@ struct MeScreen: View {
                 Text("段后间距：\(Int(preset.paragraphSpacingAfter)) pt")
             }
 
-            // 应用并重分页（演示）：打通 TypographySignature 变更 → 缓存作废 → 重分页 机制链路
-            Button(action: applyAndRepaginate) {
-                Text("应用并重分页（演示）")
-            }
-
-            if !lastReport.isEmpty {
-                Text(lastReport)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            // 重排入口在下方「阅读重排」分区（开发包 #8：作用于当前真实书）——
+            // **替换** #6 的「应用并重分页（演示）」，不保留两个语义重复的按钮。
 
             Text("排版预设已持久化（Application Support/com.inksight/preset/TypographyPreset.json），随备份恢复；改参数即时落盘、下次启动自动恢复。")
                 .font(.caption)
@@ -354,7 +367,60 @@ struct MeScreen: View {
         } header: {
             Text("阅读排版设置（持久化预设）")
         } footer: {
-            Text("「应用并重分页」仅演示缓存作废机制链路，不涉及任何正文落盘（CTFrameCache 仅内存）。")
+            Text("排版预设只存 8 个排版参数（无正文、无页码）；重排只在内存完成（CTFrameCache 仅内存，不落盘）。")
+        }
+    }
+
+    /// 阅读重排分区（开发包 #8）：作用于**当前真实书**，不再是演示章节。
+    ///
+    /// - 「重排当前章」：读出当前书当前章正文 → 真实 `apply()` → **用户可读反馈**；
+    /// - 「其余章后台重排」：入队（**只存取正文的闭包**）＋ 调度器驱动（1 章/次，可取消）；
+    /// - **诚实空态**：无当前书／正文取不到／只有 1 章时，如实说明「无可重排内容」，**不伪装成功**。
+    @ViewBuilder
+    private var repaginationSection: some View {
+        Section {
+            // 当前书信息（诚实：没有书就明说，不伪造书目）
+            if let item = currentBookItem {
+                HStack {
+                    Text("当前书")
+                    Spacer()
+                    Text("\(item.title) · \(item.chapterCount) 章").foregroundStyle(.secondary)
+                }
+            } else {
+                Text("当前书：无（书架为空或未注入）")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Button(action: repaginateCurrentChapter) {
+                Text("重排当前章（当前书）")
+            }
+
+            if !repaginationFeedback.isEmpty {
+                Text(repaginationFeedback)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Button(action: startBackgroundRepagination) {
+                Text("其余章后台重排")
+            }
+
+            if !backgroundModel.statusText.isEmpty {
+                Text(backgroundModel.statusText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if backgroundModel.scheduler.isRunning {
+                Button(action: { backgroundModel.cancel() }) {
+                    Text("取消后台重排")
+                }
+            }
+        } header: {
+            Text("阅读重排（当前书）")
+        } footer: {
+            Text("后台重排按「1 章/次」增量处理，正文按需切片读取、常驻 ≤1 章，可随时取消；不涉及任何正文落盘。")
         }
     }
 
@@ -415,19 +481,82 @@ struct MeScreen: View {
         try? MotionSettingsStore().save(motionSettings)
     }
 
-    /// 演示机制链路：用持久化预设重排示例章节，把 `RePaginationReport` 打到调试输出。
-    private func applyAndRepaginate() {
+    // MARK: - 阅读重排（开发包 #8：真实链路）
+
+    /// 当前书（继续阅读优先：有阅读锚点的优先，否则取第一本）。
+    private var currentBookItem: BookShelfItem? {
+        bookShelf?.currentItem
+    }
+
+    /// 当前书当前章索引（有阅读锚点则用锚点指向的章，越界回退到首章）。
+    private func currentChapterIndex(of item: BookShelfItem) -> Int {
+        let anchorChapter = item.lastReadAnchor?.chapterID ?? 0
+        return min(anchorChapter, max(0, item.chapters.count - 1))
+    }
+
+    /// 重排当前书当前章（真实链路）：读正文 → 真实 `apply()` → 用户可读反馈。
+    ///
+    /// **诚实空态**：无当前书或正文取不到时，如实说明「无可重排内容」，**不伪装成功**。
+    private func repaginateCurrentChapter() {
         // 落盘（.onChange 已落，这里显式再保一次一致性）
         try? TypographyPresetStore().save(preset)
-        let report = coordinator.apply(
-            preset,
-            chapterText: SampleChapter.text,
-            chapterID: SampleChapter.chapterID,
-            containerSize: ReaderEngine.defaultContainerSize,
-            screenScale: 1.0
-        )
-        let line = "[PaginationCoordinator] old=\(report.oldSignature ?? "nil") new=\(report.newSignature) invalidated=\(report.cacheInvalidated) retime=\(String(format: "%.2f", report.currentChapterRetimeMs))ms bg=\(report.backgroundChaptersScheduled)"
-        print(line)
-        lastReport = line
+
+        guard let item = currentBookItem else {
+            repaginationFeedback = "无可重排内容：书架里没有书。"
+            return
+        }
+        let chapterIndex = currentChapterIndex(of: item)
+        guard let shelf = bookShelf,
+              let text = shelf.chapterText(for: item, chapterIndex: chapterIndex),
+              !text.isEmpty else {
+            repaginationFeedback = "无可重排内容：当前书的章节正文不可读。"
+            return
+        }
+
+        // 会话复用（同一本书同一章时保留签名 → 可观察「排版未变／已重排」）
+        let session: ReaderSession
+        if let existing = bookSession,
+           existing.engine?.bookID == item.bookID,
+           existing.engine?.chapterID == chapterIndex {
+            session = existing
+        } else {
+            session = ReaderSession(engine: ReaderEngine(bookID: item.bookID,
+                                                        chapterID: chapterIndex,
+                                                        chapterText: text,
+                                                        typography: preset),
+                                    coordinator: .shared)
+            bookSession = session
+        }
+        let outcome = session.applyTypography(preset)
+        repaginationFeedback = outcome.message
+    }
+
+    /// 其余章后台重排：入队（**只存取正文的闭包**）＋ 调度器驱动（1 章/次，可取消）。
+    ///
+    /// **诚实空态**：无当前书／只有 1 章时，如实说明「无可重排内容」。
+    private func startBackgroundRepagination() {
+        guard let item = currentBookItem else {
+            backgroundModel.statusText = "无可重排内容：书架里没有书。"
+            return
+        }
+        guard let shelf = bookShelf else {
+            backgroundModel.statusText = "无可重排内容：未注入书架。"
+            return
+        }
+        let currentIndex = currentChapterIndex(of: item)
+        // 其余章：**只提供取正文的闭包**——正文不在入队时物化（NFR-09 ②，常驻正文 ≤1 章）
+        let chapters: [(id: Int, textProvider: () -> String?)] = item.chapters.indices
+            .filter { $0 != currentIndex }
+            .map { index in
+                (id: index, textProvider: { shelf.chapterText(for: item, chapterIndex: index) })
+            }
+        guard !chapters.isEmpty else {
+            backgroundModel.statusText = "无可重排内容：当前书只有 1 章，没有其余章可后台重排。"
+            return
+        }
+        backgroundModel.start(chapters: chapters,
+                              typography: preset,
+                              containerSize: ReaderEngine.defaultContainerSize,
+                              screenScale: 1.0)
     }
 }

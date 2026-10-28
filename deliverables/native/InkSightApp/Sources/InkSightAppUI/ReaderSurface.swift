@@ -23,19 +23,38 @@ public struct ReaderSurfaceView: View {
 
     public let onExit: () -> Void
     /// 阅读引擎（nil ＝ 诚实空态）。
+    ///
+    /// **注入的初始引擎**；开发包 #8 起，运行期换排版后以 `session.engine` 为当前生效引擎
+    /// ——换排版得到的新引擎**不会被外部旧引擎覆盖**（见 `ReaderSession.adopt` 的同源判定）。
     let engine: ReaderEngine?
 
-    @State private var currentPage: Int = 0
+    /// 运行期会话（开发包 #8）：持有当前生效引擎与当前页，承载换排版与落点重定位。
+    @State private var session: ReaderSession
+
     @State private var config: ReaderConfig = .default
 
     public init(onExit: @escaping () -> Void) {
         self.onExit = onExit
         self.engine = nil
+        _session = State(initialValue: ReaderSession(engine: nil, coordinator: .shared))
     }
 
     public init(engine: ReaderEngine, onExit: @escaping () -> Void) {
         self.engine = engine
         self.onExit = onExit
+        // 用 App 级单例协调器（与设置页共用同一套锚点缓存——见 `PaginationCoordinator.shared`）
+        _session = State(initialValue: ReaderSession(engine: engine, coordinator: .shared))
+    }
+
+    /// **换排版公开入口**（开发包 #8）：同步重排当前章 → 落点按**同一 `charOffset`**
+    /// 经新锚点重新二分定位 → 页面刷新。
+    ///
+    /// 定位铁律：落点靠 `charOffset` 重新二分，**不引入任何 `pageIndex` 依赖**。
+    /// 无正文时返回 `.noContent`（诚实空态，不伪装成功）。
+    @discardableResult
+    public func applyTypography(_ typography: ReaderTypography,
+                                containerSize: CGSize = ReaderEngine.defaultContainerSize) -> RepaginationOutcome {
+        session.applyTypography(typography, containerSize: containerSize)
     }
 
     public var body: some View {
@@ -44,13 +63,13 @@ public struct ReaderSurfaceView: View {
             Color(white: 0.98)
                 .ignoresSafeArea()
 
-            if let engine {
+            if let live = session.engine {
                 VStack(spacing: 0) {
-                    readerTopBar(engine)
-                    ReaderPager(engine: engine, page: $currentPage, mode: config.pageTurnMode)
-                        .onChange(of: currentPage) { _, _ in recordProgressIfPossible() }
+                    readerTopBar(live)
+                    ReaderPager(engine: live, page: pageBinding, mode: config.pageTurnMode)
+                        .onChange(of: session.currentPage) { _, _ in recordProgressIfPossible() }
                 }
-                .onAppear { currentPage = engine.recoverPageIndex() }
+                .onAppear { prepareSession() }
                 .onDisappear { recordProgressIfPossible() }
             } else {
                 honestEmptyState
@@ -58,13 +77,35 @@ public struct ReaderSurfaceView: View {
         }
     }
 
+    /// 当前页绑定（写入会话 → 触发进度回写）。
+    private var pageBinding: Binding<Int> {
+        Binding(
+            get: { session.currentPage },
+            set: { newValue in session.currentPage = newValue }
+        )
+    }
+
+    /// 进入阅读器：采纳注入引擎 ＋ 按**持久化预设**排版。
+    ///
+    /// 若持久化预设与当前引擎排版不同 → **走重排链路**（不静默沿用旧排版）；
+    /// 一致则直接恢复落点。
+    private func prepareSession() {
+        session.adopt(engine)
+        let preset = TypographyPresetStore().load()
+        if let live = session.engine, live.typography != preset {
+            session.applyTypography(preset)
+        } else {
+            session.restoreLanding()
+        }
+    }
+
     // MARK: - 进度回写（只 charOffset＋fingerprint）
 
     /// 页/滚动停止时回写：取当前页首 charOffset，只存 charOffset＋fingerprint（FR-011 / 定位铁律）。
     private func recordProgressIfPossible() {
-        guard let engine else { return }
-        let offset = engine.page(at: currentPage)?.anchor.charOffset ?? 0
-        engine.recordProgress(at: offset)
+        guard let live = session.engine else { return }
+        let offset = live.page(at: session.currentPage)?.anchor.charOffset ?? 0
+        live.recordProgress(at: offset)
     }
 
     // MARK: - 顶栏（0 玻璃）

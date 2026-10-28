@@ -20,7 +20,11 @@ public final class ReaderEngine: @unchecked Sendable {
     public let typography: ReaderTypography
     public let typeset: TypesetResult
 
-    private let progressStore: ReadingProgressStore
+    /// 进度仓库（开发包 #8：换排版时**共享同一份**——重排后进度不丢）。
+    ///
+    /// 公开原因：换排版会新建引擎，必须复用同一份进度仓库，否则续读落点会丢。
+    /// 仓库内仍只存 `charOffset + fingerprint`（4 字段，无 pageIndex）。
+    public let progressStore: ReadingProgressStore
 
     public static let defaultContainerSize = CGSize(width: 360, height: 720)
 

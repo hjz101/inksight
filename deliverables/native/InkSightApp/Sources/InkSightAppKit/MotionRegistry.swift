@@ -220,6 +220,15 @@ public final class MotionCoordinator {
 
     public private(set) var isMotionEnabled: Bool
 
+    /// **系统「减弱动态效果」**（iOS 辅助功能开关）：**优先级最高**——开启时任何动效都不播。
+    ///
+    /// 与用户「总关」的**关键区别**（不得混为一谈）：
+    /// - 用户总关 → `dropTrigger` 的彩蛋**连触发一起短路**（用户主动不要这个功能）；
+    /// - 系统减弱动态效果 → **只去动画，不去功能**（摇一摇仍可唤面板，只是不播动画）。
+    ///
+    /// 由 UI 层在进入/离开场景时同步本值（观察 `@Environment(\.accessibilityReduceMotion)`）。
+    public var systemReduceMotion: Bool = false
+
     /// **每 ID 独立开关（开发包 #7）**：只存「被单独关闭」的 ID。
     ///
     /// 为什么用 `Set<MotionID>` 而不是字典：① 判存 O(1)；② 与 `MotionSettings.perID`
@@ -242,8 +251,17 @@ public final class MotionCoordinator {
     /// 该 ID 是否允许播动画 ＝ **全局总关 AND 未被单独关闭**。
     ///
     /// **全局总关优先级最高**：任何单 ID 开关都不能绕过总关——总关时即使某 ID 单独开着也不播。
+    /// 本判定管的是「**功能与动画的联合**」（决定 `dropTrigger` 是否短路触发）。
     public func isEnabled(_ id: MotionID) -> Bool {
         isMotionEnabled && !individuallyDisabled.contains(id)
+    }
+
+    /// 是否**应播动画** ＝ `isEnabled(_:)` **AND** 系统未开启「减弱动态效果」。
+    ///
+    /// 与 `isEnabled(_:)` 的差别：系统减弱动态效果时**只去动画、不去功能**——
+    /// 触发照常执行（状态变更生效），只是不播动画路径。
+    public func shouldAnimate(_ id: MotionID) -> Bool {
+        isEnabled(id) && !systemReduceMotion
     }
 
     /// 该 ID 是否被**单独**关闭（**不含**全局总关的影响）——UI 开关行状态取自此处。

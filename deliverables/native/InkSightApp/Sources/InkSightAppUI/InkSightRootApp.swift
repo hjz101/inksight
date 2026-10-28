@@ -34,7 +34,7 @@ public struct RootTabView: View {
                 .tabItem { Label("书架", systemImage: "books.vertical") }
             InkScreen(bookShelf: bookShelf)
                 .tabItem { Label("墨量", systemImage: "drop") }
-            MeScreen(ageState: ageState, variant: variant)
+            MeScreen(ageState: ageState, variant: variant, bookShelf: bookShelf)
                 .tabItem { Label("我", systemImage: "person") }
         }
     }
