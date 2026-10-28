@@ -93,6 +93,10 @@ struct InkScreen: View {
     /// 本地检索仓库（FR-024a）；nil ＝ 未注入（诚实空态）。
     var searchStore: LocalSearchStore?
     @State private var showSearch = false
+    /// FR-023 墨量统计引擎（单例，跨会话累计）。
+    @StateObject private var metricsModel = ReadingMetricsModel.shared
+    /// 分享卡是否呈现。
+    @State private var showShareCard = false
 
     var body: some View {
         ScrollView {
@@ -116,19 +120,68 @@ struct InkScreen: View {
                     .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
                 }
                 .buttonStyle(.plain)
+                // FR-023 墨量统计：时长/本数/连续天/时段分布（真实数据，诚实空态不伪造）
                 GlassSurface(strength: .l2, interactive: false) {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 10) {
                         Text("阅读成就").font(.headline)
-                        Text("已导入 \(bookShelf.items.count) 本书")
-                            .font(.subheadline)
+                        let summary = metricsModel.summary
+
+                        // 时长（无数据 → 诚实显示「尚未记录」，不伪造 0）
+                        HStack {
+                            Text("累计阅读").font(.subheadline)
+                            Spacer()
+                            if let total = summary.totalMinutes {
+                                Text("\(Int(total)) 分钟").font(.subheadline.weight(.medium))
+                            } else {
+                                Text("尚未记录").font(.subheadline).foregroundStyle(.secondary)
+                            }
+                        }
+                        HStack {
+                            Text("读过").font(.subheadline)
+                            Spacer()
+                            Text("\(summary.bookCount) 本").font(.subheadline.weight(.medium))
+                        }
+                        HStack {
+                            Text("连续阅读").font(.subheadline)
+                            Spacer()
+                            Text("\(summary.streakDays) 天").font(.subheadline.weight(.medium))
+                        }
+                        // 时段分布（仅显示有记录的时段）
+                        if !summary.distribution.isEmpty {
+                            Divider()
+                            Text("时段分布").font(.caption).foregroundStyle(.secondary)
+                            ForEach(ReadingMetrics.TimeSlot.allCases, id: \.rawValue) { slot in
+                                if let minutes = summary.distribution[slot], minutes > 0 {
+                                    HStack {
+                                        Text(slot.displayName).font(.caption)
+                                        Spacer()
+                                        Text("\(Int(minutes)) 分钟").font(.caption)
+                                    }
+                                }
+                            }
+                        }
                         // 每日阅读时长上限：以家长侧设置为准。
-                        // 注意：不引用 DailyReadingQuota.minutesTBD 的裸值——D-03 无依据不造数，且不 force-unwrap。
                         Text("每日阅读时长上限：以家长侧设置为准")
-                            .font(.caption)
+                            .font(.caption2)
                             .foregroundStyle(.secondary)
+                        // 分享卡（配色生成，非第三方书封）
+                        Button {
+                            showShareCard = true
+                        } label: {
+                            Label("生成分享卡", systemImage: "square.and.arrow.up")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.borderless)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
+                }
+                .onAppear {
+                    metricsModel.bookShelf = bookShelf
+                    metricsModel.refresh()
+                }
+                .sheet(isPresented: $showShareCard) {
+                    ShareCardView(lines: metricsModel.shareLines())
                 }
             }
             .padding()

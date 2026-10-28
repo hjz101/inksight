@@ -81,6 +81,8 @@ public struct ReaderSurfaceView: View {
     @State private var showSelectionActions = false
     /// FR-013：划线成功提示（短暂 toast）。
     @State private var highlightToast: String?
+    /// FR-023：本次阅读开始时刻（退出时算时长上报墨量统计）。
+    @State private var sessionStart: Date?
     /// FR-018 版本对比：对比报告（nil ＝ 未打开）。
     @State private var compareReport: VersionDiff.Report?
     @State private var compareLeftName = ""
@@ -266,6 +268,8 @@ public struct ReaderSurfaceView: View {
             prepareSession()
             // **FR-037：仅阅读器锁竖屏**（其他界面不受限）——进入即锁，退出即解。
             OrientationController.shared.lockReaderToPortrait()
+            // **FR-023**：记录本次阅读开始时刻（退出时算时长）。
+            sessionStart = Date()
         }
         // FR-013 划线操作面板：选中一行后弹出（划线/笔记/标签，3 步内完成）
         .overlay {
@@ -456,6 +460,8 @@ public struct ReaderSurfaceView: View {
             session.endSession()
             // **FR-037：退出阅读器解锁方向**（恢复其他界面可旋转）。
             OrientationController.shared.unlockAfterReader()
+            // **FR-023 墨量统计**：上报本次阅读时长（<1 分钟不计，避免噪声）。
+            recordReadingSessionIfPossible()
         }
     }
 
@@ -516,6 +522,20 @@ public struct ReaderSurfaceView: View {
         let thirdW = size.width / 3, thirdH = size.height / 3
         return location.x >= thirdW && location.x <= thirdW * 2
             && location.y >= thirdH && location.y <= thirdH * 2
+    }
+
+    /// FR-023：上报本次阅读时长到墨量统计（退出阅读器时调用）。
+    ///
+    /// 口径：本次会话真实时长（进入→退出）；**<1 分钟不记录**（避免翻一眼就计入的噪声）。
+    private func recordReadingSessionIfPossible() {
+        guard let start = sessionStart, let live = session.engine else {
+            sessionStart = nil
+            return
+        }
+        defer { sessionStart = nil }
+        let minutes = Date().timeIntervalSince(start) / 60
+        guard minutes >= 1 else { return }
+        ReadingMetricsModel.shared.recordReading(bookID: live.bookID, minutes: minutes)
     }
 
     // MARK: - FR-013 长按选句 → 划线
