@@ -170,6 +170,8 @@ struct ShelfScreen: View {
 
     @State private var showImporter = false
     @State private var activeEngine: ReaderEngine?
+    /// 导入被拒原因（FR-034 凭据命中）；nil ＝ 无拒绝。
+    @State private var importRejectionMessage: String?
 
     var body: some View {
         ZStack {
@@ -183,6 +185,14 @@ struct ShelfScreen: View {
                 }
                 .padding()
 
+                // FR-034：凭据命中导致的导入被拒——如实说明原因（不回显凭据）
+                if let rejection = importRejectionMessage {
+                    Text(rejection)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .padding(.horizontal)
+                        .padding(.bottom, 8)
+                }
                 if bookShelf.items.isEmpty {
                     HonestPlaceholder(screenName: "书架")
                 } else {
@@ -262,13 +272,24 @@ struct ShelfScreen: View {
                                     containerSize: ReaderLayout.shared.containerSize)
     }
 
-    /// 处理导入结果：取消则不产生条目（诚实）；成功则导入并立即打开首章（演示闭环）。
+    /// 处理导入结果：取消则不产生条目（诚实）；凭据命中则拒绝导入；成功则导入并立即打开首章。
     private func handleImport(_ result: Result<[URL], Error>) {
         guard let url = try? result.get().first else { return }   // 取消：不生成条目
+
+        // **FR-034 凭据校验**：导入前静态扫描，命中即拒绝（不落盘、不记录凭据原文）。
+        if let data = try? Data(contentsOf: url) {
+            let scan = CredentialScanner.scan(data: data)
+            if scan.shouldReject {
+                importRejectionMessage = scan.rejectionMessage
+                return   // 拒绝导入：不生成条目
+            }
+        }
+
         let bookID = "local-" + url.lastPathComponent
         let title = url.deletingPathExtension().lastPathComponent
         do {
             let item = try bookShelf.importLocalBook(bookID: bookID, title: title, fileURL: url)
+            importRejectionMessage = nil
             // FR-024a：导入成功后显式建立本地 FTS 索引（逐章切片，不一次性常驻全文）。
             // 索引失败不阻断导入/阅读——搜索页走诚实空态，书架仍可用。
             if let searchStore,

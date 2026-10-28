@@ -578,6 +578,11 @@
 **问题（本轮发现并修复的实质偏差）**：设置页此前用 `Slider(fontSize: 14...28)` / `Slider(lineHeight: 1.2...2.4)` / `Slider(margin: 8...48)` ＋ 段前/段后 Stepper(0...24)，**允许任意连续值**——包括 PRD 明令不开放的 12pt 以下字号、以及被否决的中间档。「12pt 不是多一档字号、是多一整套组合」（校验组合从 3×N 变 4×N）。这是实现与 PRD 的实质偏差，非配置问题。**随附交付登记（D-53 执行 · 开发包 #22）**：新增 `TypographyTiers`（档位定义 ＋ 归一化）＋ `TypographyTiersTests`（7 个）；设置页滑块全部改为**档位 Picker**；`TypographyPresetStore` 落盘/读取均归一化。**测试**：InkSightApp **194 / 0**（186 ＋ 7 档位 ＋ 1 归一化往返），InkSightCore 41/0。**落地**：①字号 **19/20/21** 三档 segmented Picker（`12pt 不开放` 有测试断言）②行高 **1.70/1.75/1.85** ③边距 **16/20/24**（首次启动按屏宽定默认：≤375→16、>375→20）④首行缩进 无/2 字（=2×字号，随字号联动）⑤段前 12／段后 0 改为**只读展示**（PRD 正文样式基线，非用户可调项）⑥`TypographyTiers.normalize` 把任意越界值 snap 到最近合法档（幂等），并在 `TypographyPresetStore` 的 `save`/`load` 双端调用——**历史非法预设不会继续生效**。**测试更新（留痕）**：`TypographyPresetStoreTests.testSaveThenLoadRoundTrips` 原用非法档位（1.6/10/6/32）做往返，归一化后会 snap 导致不等；改为合法档位验证真往返，并**新增** `testOutOfRangePresetIsNormalizedOnSave` 覆盖越界归一化。**诚实空态（未做/待后续）**：`fontID` 仍无 UI 选择入口（白名单 2 款，PRD FR-031 要求按名称引用；切换入口待后续）；环境光模式仍退化为按时段（无传感器）。
 
 ---
+### D-73　FR-034 书源凭据校验落地（导入即拦，凭据不回显）
+
+**随附交付登记（D-53 执行 · 开发包 #23）**：新增 `CredentialScanner`（5 类凭据：cookie/token/authorization/password/accountCredential）＋ `CredentialScannerTests`（10 个）；`ShelfScreen.handleImport` 在导入前扫描、命中即拒绝并展示原因。**测试**：InkSightApp **204 / 0**（194 ＋ 10），InkSightCore 41/0，iOS Simulator SDK Build complete。**落地（PRD FR-034 原文逐条）**：①**导入时静态扫描** Cookie／Token／Authorization／账密字段（大小写不敏感）②**命中即拒绝导入并说明原因**——拒绝提示展示在图书架页顶部（红色 caption），不生成任何条目 ③**凭据不落盘、不参与同步与日志**——`CredentialScanner` 只做内存判定，`ScanResult` **只报类别、不含凭据原文**（有专门测试 `testRejectionMessageDoesNotEchoCredential` 断言拒绝原因不回显 secret）④非 UTF-8 内容（GBK/二进制）用 Latin1 兜底扫描，避免漏检（有测试）。**设计取舍**：`ScanResult` 刻意不持有命中行原文——PRD 要求凭据不进日志，若结构里带着原文，将来接入日志/遥测时极易泄漏；只留 `Kind` 是类型层的防线。**诚实空态（未做/待后续）**：扫描为**字段名启发式**（不解析规则文件结构），存在两个已知边界——过于宽泛的文本（如小说正文里出现 "token:" 字样）会误拦，与漏检风险权衡取严（PRD 判据「拿不准按"是"处理」）；书源规则文件的专用结构校验（JSON/JS 规则字段级）未做，当前是通用文本扫描。
+
+---
 ## 3. 状态索引
 
 ### 3.1 仍开放（客户后续再定）
