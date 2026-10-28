@@ -43,6 +43,8 @@ public struct ReaderSurfaceView: View {
     @State private var glassPresentation: GlassPresentationState = .steady
     /// FR-011 书签：最近一次书签锚点（用于展示/测试断言）。
     @State private var lastBookmark: Bookmark?
+    /// FR-018：是否呈现「换一个版本」面板。
+    @State private var showVersionPicker = false
 
     public init(onExit: @escaping () -> Void) {
         self.onExit = onExit
@@ -97,7 +99,7 @@ public struct ReaderSurfaceView: View {
                     ReaderToolbar(
                         presentation: glassPresentation,
                         onBookmark: addBookmarkAtCurrentPage,
-                        onSwapVersion: {},
+                        onSwapVersion: { showVersionPicker = true },
                         onSettings: {}
                     )
                 }
@@ -113,6 +115,22 @@ public struct ReaderSurfaceView: View {
             prepareSession()
             // **FR-037：仅阅读器锁竖屏**（其他界面不受限）——进入即锁，退出即解。
             OrientationController.shared.lockReaderToPortrait()
+        }
+        // FR-018「换一个版本」面板：底部 sheet 类（D-38 高度口径由 BottomSheetContainer 承载）。
+        .sheet(isPresented: $showVersionPicker) {
+            if let live = session.engine {
+                VersionPickerPanel(
+                    current: VersionCandidate(
+                        id: live.bookID,
+                        fileName: "当前章节",
+                        fileSizeBytes: (live.chapterText as NSString).length * 3,
+                        format: "TXT",
+                        matchScore: 1.0
+                    ),
+                    candidates: []
+                )
+                .presentationDetents([.medium, .large])
+            }
         }
         .onDisappear {
             recordProgressIfPossible()
