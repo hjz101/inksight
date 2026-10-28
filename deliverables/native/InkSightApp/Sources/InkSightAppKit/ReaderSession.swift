@@ -94,7 +94,10 @@ public final class ReaderSession: ObservableObject {
     /// 分页协调器（持有 `PageAnchorCache` / `CTFrameCache` 与后台队列）。
     public let coordinator: PaginationCoordinator
 
-    public init(engine: ReaderEngine?, coordinator: PaginationCoordinator = PaginationCoordinator()) {
+    /// - Parameter coordinator: **默认即 App 级单例**（NFR-11：单例由**构造**保证，
+    ///   不靠「记得传 `.shared`」——漏传即静默退化成第二个真相，且无任何测试能捕捉）。
+    ///   需要隔离（如单测）时**显式**传独立实例。
+    public init(engine: ReaderEngine?, coordinator: PaginationCoordinator = .shared) {
         self.engine = engine
         self.coordinator = coordinator
     }
@@ -131,10 +134,14 @@ public final class ReaderSession: ObservableObject {
     /// （沿用 #3/#4/#5 的既有口径：误差 ≤ 新页覆盖的字符数）。
     ///
     /// 无正文时返回 `.noContent`——**诚实空态，不伪装成功**。
+    /// - Parameters:
+    ///   - containerSize: 容器尺寸——**默认取 `ReaderLayout.shared`（唯一来源）**，
+    ///     不引入第二套尺寸常量（开发包 #10 容器尺寸贯通）。
+    ///   - screenScale: 屏幕缩放——同上，取自 `ReaderLayout.shared`。
     @discardableResult
     public func applyTypography(_ typography: ReaderTypography,
-                                containerSize: CGSize = ReaderEngine.defaultContainerSize,
-                                screenScale: Double = 1.0,
+                                containerSize: CGSize = ReaderLayout.shared.containerSize,
+                                screenScale: Double = ReaderLayout.shared.screenScale,
                                 kinsoku: Kinsoku = .v1) -> RepaginationOutcome {
         guard let engine, !engine.chapterText.isEmpty else {
             let outcome = RepaginationOutcome(

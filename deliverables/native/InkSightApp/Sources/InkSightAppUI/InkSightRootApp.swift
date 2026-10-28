@@ -13,6 +13,10 @@ public struct RootTabView: View {
     /// （`ReadingProgressStore` 作为可落盘的进度模型已交付并由单测覆盖；骨架期续读锚点经 `BookShelfItem.lastReadAnchor` 承载。）
     private let bookShelf: BookShelfStore
 
+    /// 系统「减弱动态效果」——**优先级最高**：开启时任何动效都不播（但**功能不减**）。
+    /// 同步到唯一动画入口（`MotionCoordinator`），由它统一裁决（FR-030）。
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     public init(ageState: AgeGateState, variant: BuildVariant, onOpenReader: @escaping () -> Void) {
         self.init(ageState: ageState, variant: variant, onOpenReader: onOpenReader,
                   bookShelf: BookShelfStore())
@@ -36,6 +40,11 @@ public struct RootTabView: View {
                 .tabItem { Label("墨量", systemImage: "drop") }
             MeScreen(ageState: ageState, variant: variant, bookShelf: bookShelf)
                 .tabItem { Label("我", systemImage: "person") }
+        }
+        // 系统「减弱动态效果」同步到唯一动画入口（优先级最高：只去动画不去功能）
+        .onAppear { MotionCoordinator.shared.systemReduceMotion = reduceMotion }
+        .onChange(of: reduceMotion) { _, newValue in
+            MotionCoordinator.shared.systemReduceMotion = newValue
         }
     }
 }

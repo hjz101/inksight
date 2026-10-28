@@ -181,12 +181,16 @@ struct ShelfScreen: View {
     /// 开发包 #8：**按持久化排版预设排版**（`TypographyPresetStore`）——
     /// 用户在「我」页改过字号/行高后，打开书即按新预设渲染（若与引擎当前排版不同，
     /// `ReaderSurfaceView` 会走重排链路，不静默沿用旧排版）。
+    ///
+    /// 开发包 #10：**容器尺寸取唯一来源** `ReaderLayout.shared`——
+    /// 与设置页、阅读器实测值同源 ⇒ 两端签名一致 ⇒ 缓存互通。
     private func openBook(_ item: BookShelfItem) {
         let chapterIndex = min(item.lastReadAnchor?.chapterID ?? 0, max(0, item.chapters.count - 1))
         guard let text = bookShelf.chapterText(for: item, chapterIndex: chapterIndex) else { return }
         let typography = TypographyPresetStore().load()
         activeEngine = ReaderEngine(bookID: item.bookID, chapterID: chapterIndex, chapterText: text,
-                                    typography: typography)
+                                    typography: typography,
+                                    containerSize: ReaderLayout.shared.containerSize)
     }
 
     /// 处理导入结果：取消则不产生条目（诚实）；成功则导入并立即打开首章（演示闭环）。
@@ -267,6 +271,8 @@ struct MeScreen: View {
     @State private var repaginationFeedback: String = ""
     /// 后台重排状态模型（调度在后台线程、状态在主线程呈现）。
     @StateObject private var backgroundModel = RepaginationStatusModel()
+    /// 动效运行时面板是否呈现（开发包 #9/#10：13 个动效的真实可播实现 ＋ 真实触发点）。
+    @State private var showMotionRuntime = false
 
     /// 场景相位：`scenePhase != .active` 立即停后台重排
     /// （对齐 NFR-04「`scenePhase != .active` 立即 `cancelAllTasks()`」的纪律精神）。
@@ -299,6 +305,14 @@ struct MeScreen: View {
                 settingsSection
                 repaginationSection
                 motionSection
+            }
+        }
+        // 动效运行时面板（开发包 #9/#10）：13 个动效的真实可播实现 ＋ 真实触发点。
+        // 内联 overlay 呈现（跨平台；**不用系统 sheet morph**——可关转场禁用系统 push/sheet morph）。
+        .overlay {
+            if showMotionRuntime {
+                MotionRuntimeScreen()
+                    .transition(.identity)
             }
         }
         // 预设改动即时落盘（单门 JSON 原子写；不设备份排除键——用户偏好应可备份）
@@ -472,6 +486,18 @@ struct MeScreen: View {
                 Text(group.chineseName)
             }
         }
+
+        // 动效运行时面板入口（开发包 #9/#10）：13 个动效的**真实可播实现** ＋ 真实触发点。
+        Section {
+            Button(action: { showMotionRuntime = true }) {
+                Text("动效运行时（13 个动效可播）")
+            }
+            Text("开关只决定「播不播」；每个动效的真实触发点都在运行时面板里（触发一律经 MotionCoordinator.perform）。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } header: {
+            Text("动效运行时")
+        }
     }
 
     /// 把动效开关应用到唯一动画入口（`MotionCoordinator`），并即时落盘（单门 JSON 原子写）。
@@ -523,11 +549,14 @@ struct MeScreen: View {
             session = ReaderSession(engine: ReaderEngine(bookID: item.bookID,
                                                         chapterID: chapterIndex,
                                                         chapterText: text,
-                                                        typography: preset),
+                                                        typography: preset,
+                                                        containerSize: ReaderLayout.shared.containerSize),
                                     coordinator: .shared)
             bookSession = session
         }
-        let outcome = session.applyTypography(preset)
+        let outcome = session.applyTypography(preset,
+                                              containerSize: ReaderLayout.shared.containerSize,
+                                              screenScale: ReaderLayout.shared.screenScale)
         repaginationFeedback = outcome.message
     }
 
@@ -556,7 +585,7 @@ struct MeScreen: View {
         }
         backgroundModel.start(chapters: chapters,
                               typography: preset,
-                              containerSize: ReaderEngine.defaultContainerSize,
-                              screenScale: 1.0)
+                              containerSize: ReaderLayout.shared.containerSize,
+                              screenScale: ReaderLayout.shared.screenScale)
     }
 }

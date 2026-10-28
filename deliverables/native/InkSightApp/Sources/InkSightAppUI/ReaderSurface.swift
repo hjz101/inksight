@@ -33,6 +33,9 @@ public struct ReaderSurfaceView: View {
 
     @State private var config: ReaderConfig = .default
 
+    /// 屏幕缩放（进 `TypographySignature`）。
+    @Environment(\.displayScale) private var displayScale
+
     public init(onExit: @escaping () -> Void) {
         self.onExit = onExit
         self.engine = nil
@@ -66,7 +69,9 @@ public struct ReaderSurfaceView: View {
             if let live = session.engine {
                 VStack(spacing: 0) {
                     readerTopBar(live)
-                    ReaderPager(engine: live, page: pageBinding, mode: config.pageTurnMode)
+                    ReaderPager(engine: live, page: pageBinding, mode: config.pageTurnMode) { size in
+                        handleSizeChange(size)
+                    }
                         .onChange(of: session.currentPage) { _, _ in recordProgressIfPossible() }
                 }
                 .onAppear { prepareSession() }
@@ -88,15 +93,37 @@ public struct ReaderSurfaceView: View {
     /// 进入阅读器：采纳注入引擎 ＋ 按**持久化预设**排版。
     ///
     /// 若持久化预设与当前引擎排版不同 → **走重排链路**（不静默沿用旧排版）；
+    /// 若引擎的排版容器尺寸已过期（阅读器实测尺寸与建引擎时不同）→ 同样走重排链路。
     /// 一致则直接恢复落点。
     private func prepareSession() {
         session.adopt(engine)
+        let layout = ReaderLayout.shared
         let preset = TypographyPresetStore().load()
-        if let live = session.engine, live.typography != preset {
-            session.applyTypography(preset)
+        if let live = session.engine,
+           live.typography != preset || live.containerSize != layout.containerSize {
+            session.applyTypography(preset,
+                                    containerSize: layout.containerSize,
+                                    screenScale: layout.screenScale)
         } else {
             session.restoreLanding()
         }
+    }
+
+    /// 容器尺寸变化（旋转／分屏／首次实测）：更新**唯一来源** `ReaderLayout.shared`，
+    /// 并在引擎排版尺寸已过期时走重排链路——**不静默沿用旧排版**。
+    ///
+    /// 贯通意义：设置页与阅读器从此读同一尺寸 ⇒ 两端 `TypographySignature` 一致
+    /// ⇒ 同一本书在两端重排时**命中同一套锚点缓存**（NFR-11）。
+    private func handleSizeChange(_ size: CGSize) {
+        let layout = ReaderLayout.shared
+        let previousSize = layout.containerSize
+        let previousScale = layout.screenScale
+        layout.update(containerSize: size, screenScale: displayScale)
+        guard layout.containerSize != previousSize || layout.screenScale != previousScale else { return }
+        guard let live = session.engine, live.containerSize != layout.containerSize else { return }
+        session.applyTypography(live.typography,
+                                containerSize: layout.containerSize,
+                                screenScale: layout.screenScale)
     }
 
     // MARK: - 进度回写（只 charOffset＋fingerprint）
@@ -157,8 +184,22 @@ struct ReaderPager: View {
     let engine: ReaderEngine
     @Binding var page: Int
     var mode: PageTurnMode
+    /// 实测容器尺寸回报（**唯一尺寸来源** `ReaderLayout.shared` 的写入口）。
+    ///
+    /// 开发包 #10 容器尺寸贯通：阅读器实测真实尺寸 → 设置页与阅读器读同一来源
+    /// ⇒ 两端 `TypographySignature` 一致 ⇒ 锚点缓存真正互通。
+    var onSizeChange: (CGSize) -> Void = { _ in }
 
     var body: some View {
+        GeometryReader { geo in
+            pagerContent
+                .onAppear { onSizeChange(geo.size) }
+                .onChange(of: geo.size) { _, newValue in onSizeChange(newValue) }
+        }
+    }
+
+    @ViewBuilder
+    private var pagerContent: some View {
         switch mode {
         case .none:
             ReaderPageCanvas(engine: engine, pageIndex: page)

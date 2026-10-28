@@ -38,7 +38,9 @@ public final class RepaginationScheduler: @unchecked Sendable {
     private var totalCount = 0
     private var _state: State = .idle
 
-    public init(coordinator: PaginationCoordinator = PaginationCoordinator(),
+    /// - Parameter coordinator: **默认即 App 级单例**（NFR-11：单例由**构造**保证，
+    ///   不靠「记得传 `.shared`」）。需要隔离（如单测）时**显式**传独立实例。
+    public init(coordinator: PaginationCoordinator = .shared,
                 batchDelay: Duration = .milliseconds(0)) {
         self.coordinator = coordinator
         self.batchDelay = batchDelay

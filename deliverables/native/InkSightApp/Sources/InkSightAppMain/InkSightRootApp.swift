@@ -25,7 +25,8 @@ struct RootView: View {
     /// 若预设与引擎当前排版不同，`ReaderSurfaceView` 会走重排链路，不静默沿用旧排版）。
     private static let sampleEngine = ReaderEngine(
         bookID: SampleChapter.bookID, chapterID: SampleChapter.chapterID, chapterText: SampleChapter.text,
-        typography: TypographyPresetStore().load()
+        typography: TypographyPresetStore().load(),
+        containerSize: ReaderLayout.shared.containerSize
     )
 
     var body: some View {

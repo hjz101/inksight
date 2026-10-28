@@ -41,7 +41,7 @@ final class RepaginationIntegrationTests: XCTestCase {
     /// 落点 `charOffset` 本身**不变**（定位铁律：靠 charOffset 重新二分，不靠 pageIndex）。
     func testRepaginationKeepsLandingOnSameCharOffset() throws {
         let engine = ReaderEngine(bookID: "b1", chapterID: 1, chapterText: sampleChapter())
-        let session = ReaderSession(engine: engine)
+        let session = ReaderSession(engine: engine, coordinator: PaginationCoordinator())
 
         // 落点取中间某页的页首（首字符太弱，取中间页才能真正检验「跨分页重定位」）
         let targetIndex = max(1, engine.pages.count / 2)
@@ -83,7 +83,7 @@ final class RepaginationIntegrationTests: XCTestCase {
     /// 重排后进度仓库里存的仍是 `charOffset + fingerprint`（重排不把页码写进进度）。
     func testProgressStoreAfterRepaginationHasNoPageIndex() throws {
         let engine = ReaderEngine(bookID: "b1", chapterID: 1, chapterText: sampleChapter())
-        let session = ReaderSession(engine: engine)
+        let session = ReaderSession(engine: engine, coordinator: PaginationCoordinator())
         let targetOffset = engine.pages[max(1, engine.pages.count / 2)].anchor.charOffset
         engine.recordProgress(at: targetOffset)
 
@@ -228,7 +228,7 @@ final class RepaginationIntegrationTests: XCTestCase {
 
     /// 无引擎（无当前书）→ 诚实空态 `.noContent`：**不伪装成功**、不触发缓存作废。
     func testApplyTypographyWithNoEngineReturnsHonestEmptyOutcome() {
-        let session = ReaderSession(engine: nil)
+        let session = ReaderSession(engine: nil, coordinator: PaginationCoordinator())
         let outcome = session.applyTypography(.default, containerSize: containerSize, screenScale: screenScale)
 
         XCTAssertEqual(outcome.status, .noContent)
@@ -242,7 +242,7 @@ final class RepaginationIntegrationTests: XCTestCase {
     /// 有引擎但正文为空 → 同样是诚实空态。
     func testApplyTypographyWithEmptyChapterTextReturnsHonestEmptyOutcome() {
         let engine = ReaderEngine(bookID: "b1", chapterID: 1, chapterText: "")
-        let session = ReaderSession(engine: engine)
+        let session = ReaderSession(engine: engine, coordinator: PaginationCoordinator())
         let outcome = session.applyTypography(.default, containerSize: containerSize, screenScale: screenScale)
 
         XCTAssertEqual(outcome.status, .noContent)

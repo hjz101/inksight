@@ -20,6 +20,12 @@ public final class ReaderEngine: @unchecked Sendable {
     public let typography: ReaderTypography
     public let typeset: TypesetResult
 
+    /// 本次排版所用的**容器尺寸**（进 `TypographySignature`）。
+    ///
+    /// 开发包 #10：阅读器实测尺寸后若与本值不同，说明排版已过期，必须走重排链路
+    /// （不静默沿用旧排版）；两端尺寸来源统一见 `ReaderLayout`。
+    public let containerSize: CGSize
+
     /// 进度仓库（开发包 #8：换排版时**共享同一份**——重排后进度不丢）。
     ///
     /// 公开原因：换排版会新建引擎，必须复用同一份进度仓库，否则续读落点会丢。
@@ -37,6 +43,7 @@ public final class ReaderEngine: @unchecked Sendable {
         self.chapterID = chapterID
         self.chapterText = chapterText
         self.typography = typography
+        self.containerSize = containerSize
         self.progressStore = progressStore
         let typesetter = Typesetter(text: chapterText, typography: typography,
                                     containerSize: containerSize, kinsoku: kinsoku)

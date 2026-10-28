@@ -297,16 +297,19 @@ public final class MotionCoordinator {
         return MotionSettings(globalEnabled: isMotionEnabled, perID: perID)
     }
 
-    /// 该播时返回该 ID 的标准动画；**总关或该 ID 被单独关闭 → nil**（＝不播动画路径）。
+    /// 该播时返回该 ID 的标准动画；**总关、该 ID 被单独关闭、或系统开启「减弱动态效果」→ nil**（＝不播动画路径）。
     /// （真机曲线/时长由各动效实现自带，Registry 只裁决"播不播"。）
     public func animation(for id: MotionID) -> Animation? {
-        isEnabled(id) ? .snappy(duration: MotionRegistry.spec(for: id).closable ? 0.3 : 0) : nil
+        shouldAnimate(id) ? .snappy(duration: MotionRegistry.spec(for: id).closable ? 0.3 : 0) : nil
     }
 
     /// 唯一播放入口。**总关或该 ID 被单独关闭**时按 `triggerPolicy` 分流：
     /// - keepTrigger：仍执行状态变更，但**无动画**（`withTransaction(animation: nil)`）——
     ///   「关动效只能减掉动画，不能减掉能力」；
     /// - dropTrigger：**连触发一起短路**（EGG5"摇动无响应、限流一并停跑"由此获得结构保证）。
+    ///
+    /// **系统「减弱动态效果」**（优先级最高）：**只去动画、不去功能**——触发照常执行、状态变更照常生效，
+    /// 只是走不播动画路径。与用户总关的 dropTrigger 短路**语义不同**，不得混为一谈。
     ///
     /// 分流是**逐 ID** 的：单独关闭某 ID 时，其余 ID 照常播。
     public func perform(_ id: MotionID, _ changes: () -> Void) {
@@ -317,6 +320,12 @@ public final class MotionCoordinator {
                 withTransaction(transaction) { changes() }
             }
             return   // dropTrigger：连触发一起短路
+        }
+        // 系统「减弱动态效果」优先级最高：只去动画，**不去功能**
+        if systemReduceMotion {
+            let transaction = Transaction(animation: nil)
+            withTransaction(transaction) { changes() }
+            return
         }
         withAnimation(.snappy(duration: 0.3)) { changes() }
     }
