@@ -79,3 +79,14 @@ public final class ReadingProgressStore: @unchecked Sendable {
         for p in decoded { progresses[p.bookID] = p }
     }
 }
+
+
+// MARK: - 备份导出需要（FR-025：全量进度；同文件扩展可访问 private 存储）
+
+extension ReadingProgressStore {
+    /// 全量进度（供备份导出）。**只含 4 字段模型，无正文**。
+    public func allProgress() -> [ReadingProgress] {
+        lock.lock(); defer { lock.unlock() }
+        return Array(progresses.values)
+    }
+}

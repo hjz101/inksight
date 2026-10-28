@@ -515,6 +515,11 @@
 **随附交付登记（D-53 执行 · 开发包 #11）**：`deliverables/native/InkSightApp/`，新增 3 文件（`CopyrightComplaint`／`CopyrightComplaintView`／`CopyrightComplaintTests`）＋ 改写 2 文件（`PlaceholderScreens` 加常驻入口与 sheet、`ReaderSession`／`ReaderSurface` 容器尺寸默认取 `ReaderLayout.shared`）。**主理人复跑验证**：InkSightApp **137 tests / 0 failures**（D-59 后 133 ＋ 本包新增 4：CopyrightComplaintTests；既有全绿不回退）；iOS Simulator SDK Build complete；InkSightCore 回归 41/0 维持；跨文档一致性 PASS 67 / FAIL 0。**FR-033 落地**：①设置内**常驻入口**（「版权声明与投诉」Section，位于「我」页设置分组）②投诉表单收四项齐备材料（权利人主体信息／权属证明／侵权具体章节 URL／善意使用声明），缺一不提交，校验报缺失项 ③处置承诺如实展示（受理回执 48h／处理 15 工作日／重复侵权 3 条下架全部章节）④投诉通达邮箱为 **`[TBD-CONTACT]` 占位**（发布闸门 A9/A10 不可豁免，代码内常量锁定并测试断言）。表单用系统 sheet（信息承载非玻璃白名单），可关转场禁用 sheet morph 纪律不适用（Form 是系统标准）。**NFR-13 缺口 a 闭合**（D-57 记录的残留缺口）：阅读器 `ReaderSurface.pagingScroll` 用 `GeometryReader` 实测真实尺寸回报 `ReaderLayout.shared.update`；`ReaderSession.applyTypography` 与 `ReaderSurface.applyTypography` 的 `containerSize`/`screenScale` 默认参数改为 nil → 运行时取 `ReaderLayout.shared` 当前值（单一来源）⇒ 设置页与阅读器签名必然一致 ⇒ 两端缓存真正互通。新增测试 `testApplyTypographyDefaultsToReaderLayoutSharedSize`（尺寸变化必须进签名，能真失败）。**待真机（不混装）**：投诉表单在真机的键盘/可达性表现；投诉提交的真实投递（邮箱为占位，投递链路待发行配置）；NFR-13 贯通后的真机缓存命中率实测。**诚实空态（本包未做/未验证）**：投诉表单只做**本地校验与提交状态**，未接真实投递（邮箱占位，投递待发行）；重复侵权处置（3 条下架）为展示承诺，实际执行逻辑待投诉处理后台。
 
 ---
+### D-61　FR-025 备份导出/导入（P0 前置：落盘格式带 version 字段）＋ README 收口
+
+**随附交付登记（D-53 执行 · 开发包 #12）**：`deliverables/native/InkSightApp/`，新增 3 文件（`BackupService`／`BackupServiceTests`／`ReadingProgressStore` 扩展）＋ README 更新。**主理人复跑验证**：InkSightApp **142 tests / 0 failures**（D-60 后 137 ＋ 本包新增 5：BackupServiceTests；既有全绿不回退）；iOS Simulator SDK Build complete；InkSightCore 回归 41/0 维持；跨文档一致性 PASS 67 / FAIL 0。**FR-025 落地**：①**P0 前置满足——落盘格式带 `version` 字段**（`BackupPayload.currentVersion = 1`；测试断言 JSON 顶层含 version；此前三个 JSON store 均无 version 字段，是真实缺口）②导出只含**进度＋排版偏好＋动效偏好**，**结构上无正文字段**（`BackupPayload` 类型上没有 body/content/chapterText 字段——FR-025「导出不含在线书正文」从条款变成类型保证，测试断言键集）③导入恢复进度与偏好，未知**更高**版本拒绝（避免读坏新格式）、更低旧版本允许（老数据可迁移）④导入失败不半途覆盖（先校验后落盘）。**README 收口**：验证状态更新为 InkSightApp 137→**142**/0、InkSightCore 41/0；契约冻结更正为 **6** 个源文件并登记 D-59 契约变更留痕；补充三门面与 FR-033/FR-025 描述；台账引用 D-01～D-60→D-61。**诚实空态（本包未做/未验证）**：备份导出未接 UI 入口（`BackupService` 为 Kit 层 API，UI 待后续包）；笔记模型尚不存在（FR-025 原文含"笔记"，本包只导出进度与偏好，笔记导出待 FR-013 笔记功能落地后接入）；导入的真实文件选择器未接。
+
+---
 ## 3. 状态索引
 
 ### 3.1 仍开放（客户后续再定）

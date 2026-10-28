@@ -24,14 +24,17 @@
 - `ChapterScanner` — 分章扫描（`Data` → 章节锚点，不驻留正文）
 - `Kinsoku` — 中日文禁则表（**版本号必须入排版签名**）
 - `StyleStripper` — 样式剥离（去 HTML / 内联样式，残留须为 0）
-- `Typesetter` — 自绘断行排版，逐字 advance 累加产出 `TypesetLine`
+- `Typesetter` — 自绘断行排版，逐字 advance 累加产出 `TypesetLine`（**断行预算硬闸 + 字体回退实测，D-59**）
 - `PageAnchor` — 定位锚点 ＋ `PageAnchorCache`（LRU 10 章，O(1) 世代号全作废）＋ `CTFrameCache`（LRU 7 页，仅内存）
 - `TypographySignature` — 排版签名（哈希含禁则表版本号）
+- `Degradation` — 降级门面（总册「三个门面」之一：所有 fallback 经 `degrade`，清单 CI 门禁）
+- `Persist` — 落盘单门（E-04：全部写盘经门面，payload 类型声明，**正文类型不存在**）
+- `Fetcher` — 出网门面（唯一出网入口，未成年人模式 `denyAll`，NFR-04 纪律内置）
 
 ### `InkSightApp`（App 层）
 
-- `InkSightAppKit` — 数据层与逻辑层：`BookShelfStore` / `ReadingProgressStore` / `SQLiteCache` / `ReaderEngine` / `CoreTextLineCompositor` / `PaginationCoordinator` / `TypographyPresetStore` / `AgeGate` / `MotionRegistry`
-- `InkSightAppUI` — SwiftUI 界面：`ReaderSurface` / `PlaceholderScreens` / `GlassSurface` / `AgeGateViews`
+- `InkSightAppKit` — 数据层与逻辑层：`BookShelfStore` / `ReadingProgressStore` / `SQLiteCache` / `ReaderEngine` / `CoreTextLineCompositor` / `PaginationCoordinator` / `TypographyPresetStore` / `AgeGate` / `MotionRegistry` / `ReaderLayout`（容器尺寸单一来源） / `CopyrightComplaint`（FR-033）
+- `InkSightAppUI` — SwiftUI 界面：`ReaderSurface` / `PlaceholderScreens` / `GlassSurface` / `AgeGateViews` / `MotionRuntimeScreen`（13 动效运行时） / `CopyrightComplaintView`
 - `InkSightAppMain` — 应用入口
 
 ## 三、三条不可让步的工程铁律
@@ -49,18 +52,22 @@
 3. **正文区 0 玻璃** — 由类型层保证：`ReaderSurfaceView` 不引用 `GlassSurface`。
    全 App 唯一玻璃入口是 `GlassSurface`（三档 L1/L2/L3），一屏最多 1–2 处玻璃浮层。
 
-另有一条变更纪律：**InkSightCore 契约冻结**——7 个源文件的 MD5 基线逐字节锁定，任何改动都要走台账新编号。
+另有一条变更纪律：**InkSightCore 契约冻结**——6 个源文件（ChapterScanner / Kinsoku / PageAnchor / StyleStripper / Typesetter / TypographySignature）的 MD5 基线逐字节锁定，任何改动都要走台账新编号。
+> **D-59 契约变更留痕**：`Typesetter.swift`（断行预算硬闸＋字体回退＋fontID 参与度量）已按台账规则 4 登记为契约变更，冻结基线待主理人重新落定。
 
 ## 四、验证状态
 
 | 验证项 | 结果 |
 |---|---|
-| `InkSightApp` 单元测试 | **64 / 0**（退出码 0） |
-| `InkSightCore` 单元测试 | **22 / 0**（退出码 0） |
+| `InkSightApp` 单元测试 | **137 / 0**（退出码 0） |
+| `InkSightCore` 单元测试 | **41 / 0**（退出码 0） |
 | iOS 26.5 Simulator SDK 真实编译 | **Build complete**（退出码 0） |
-| FR-031 跨源零位移 | 逐行最差 delta **0.0 pt**（判据 ≤0.5 pt） |
+| FR-031 跨源零位移 | 逐行最差 delta **0.0 pt**（判据 ≤0.5 pt；`maxOverflow` 独立判据见 D-59） |
 | 跨文档一致性检查器 | **PASS 67 / FAIL 0** |
 | 正文/设置链玻璃引用 | **NONE**（去注释后扫描） |
+| 三个门面 | Degradation / Persist / Fetcher 全部落地（CI 门禁测试锁住） |
+| 落盘单门 | 业务层无裸 `.write(to:`（源码扫描门禁） |
+| 出网单门 | 业务层无裸 `URLSession`（源码扫描门禁） |
 
 构建命令（本机需绕过宿主沙箱，禁用 `xcodebuild`）：
 
@@ -90,4 +97,4 @@ swift build --sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSim
 
 ---
 
-**交付决策台账**：`deliverables/交付决策台账-墨见InkSight.md`（D-01～D-54），记录每一次裁定、每一次随附交付登记与每一处主理人独立复核。
+**交付决策台账**：`deliverables/交付决策台账-墨见InkSight.md`（D-01～D-60），记录每一次裁定、每一次随附交付登记与每一处主理人独立复核。
