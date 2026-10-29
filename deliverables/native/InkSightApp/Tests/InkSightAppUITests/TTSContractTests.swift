@@ -28,7 +28,9 @@ final class TTSContractTests: XCTestCase {
     /// 面板有播放/暂停、语速、定时关闭（FR-012 三要素）。
     func testPanelHasPlaybackRateAndTimer() throws {
         let src = try source("TTSPanel.swift")
-        XCTAssertTrue(src.contains("pause.circle.fill"), "须有播放/暂停")
+        // D-97：图标已从 SF Symbols 换成自绘 `InkIcon`（FR-028 第 ① 项）
+        XCTAssertTrue(src.contains("InkIcon(engine.state == .speaking ? .pause : .play"),
+                      "须有播放/暂停（自绘图标）")
         XCTAssertTrue(src.contains("语速"), "须有语速控制")
         XCTAssertTrue(src.contains("定时关闭"), "须有定时关闭")
     }

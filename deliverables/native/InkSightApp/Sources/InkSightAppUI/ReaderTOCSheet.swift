@@ -52,8 +52,7 @@ struct ReaderTOCSheet: View {
                     .accessibilityLabel("后退 5 章")
                     Spacer()
                     Button(action: onClose) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 15, weight: .semibold))
+                        InkIcon(.close, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 17)
                             .frame(width: 44, height: 44)
                             .contentShape(Rectangle())
                     }
@@ -81,8 +80,7 @@ struct ReaderTOCSheet: View {
                                         .foregroundStyle(index == currentChapter ? .primary : .secondary)
                                     Spacer()
                                     if index == currentChapter {
-                                        Image(systemName: "bookmark.fill")
-                                            .font(.caption2)
+                                        InkIcon(.bookmark, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15)
                                     }
                                 }
                             }
@@ -139,8 +137,7 @@ struct ReaderProgressSheet: View {
                     Text("进度").font(.headline)
                     Spacer()
                     Button(action: onClose) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 15, weight: .semibold))
+                        InkIcon(.close, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15)
                             .frame(width: 44, height: 44)
                             .contentShape(Rectangle())
                     }

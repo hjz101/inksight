@@ -26,7 +26,7 @@ struct LocalSearchView: View {
             VStack(spacing: 0) {
                 // 搜索框
                 HStack {
-                    Image(systemName: "magnifyingglass")
+                    InkIcon(.search, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15)
                         .foregroundStyle(.secondary)
                     TextField("搜索本地书中的句子", text: $query)
                         .onSubmit { performSearch() }
@@ -36,7 +36,7 @@ struct LocalSearchView: View {
                             hits = []
                             hasSearched = false
                         } label: {
-                            Image(systemName: "xmark.circle.fill")
+                            InkIcon(.close, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15)
                                 .foregroundStyle(.tertiary)
                         }
                     }
@@ -101,8 +101,7 @@ struct LocalSearchView: View {
     private func honestEmptyState(_ title: String, detail: String) -> some View {
         VStack(spacing: 10) {
             Spacer()
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 36))
+            InkIcon(.search, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15)
                 .foregroundStyle(.tertiary)
             Text(title).font(.headline)
             Text(detail)

@@ -41,7 +41,7 @@ struct VersionPickerPanel: View {
 
             // pin 行：当前版本
             HStack(spacing: 6) {
-                Image(systemName: "pin.fill").font(.caption2)
+                InkIcon(.pin, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15)
                 Text("当前：\(current.fileName) · \(current.formatAndSize) · \(current.versionLabel)")
                     .font(.caption)
             }

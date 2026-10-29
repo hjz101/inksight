@@ -30,6 +30,16 @@ public struct InkIcon: View {
         case tag            // tag
         case waveform       // waveform（朗读）
         case gear           // 阅读设置
+        case tray           // 空态/导入
+        case highlighter    // 划线
+        case pin            // 当前版本
+        case play           // 播放
+        case pause          // 暂停
+        case upload         // 导出/分享
+        case download       // 导入
+        case trash          // 弃读
+        case shield         // 投诉/合规
+        case drive          // 备份
     }
 
     public let glyph: Glyph
@@ -176,6 +186,92 @@ public struct InkIcon: View {
                 p.move(to: CGPoint(x: x, y: midY - half))
                 p.addLine(to: CGPoint(x: x, y: midY + half))
             }
+
+        case .upload:
+            // 向上箭头 + 底托（导出/分享）
+            p.move(to: CGPoint(x: w / 2, y: h - m))
+            p.addLine(to: CGPoint(x: w / 2, y: m * 1.6))
+            p.move(to: CGPoint(x: w * 0.26, y: h * 0.36))
+            p.addLine(to: CGPoint(x: w / 2, y: m * 1.6))
+            p.addLine(to: CGPoint(x: w * 0.74, y: h * 0.36))
+            p.move(to: CGPoint(x: m, y: h - m))
+            p.addLine(to: CGPoint(x: w - m, y: h - m))
+
+        case .download:
+            p.move(to: CGPoint(x: w / 2, y: m))
+            p.addLine(to: CGPoint(x: w / 2, y: h * 0.66))
+            p.move(to: CGPoint(x: w * 0.26, y: h * 0.46))
+            p.addLine(to: CGPoint(x: w / 2, y: h * 0.66))
+            p.addLine(to: CGPoint(x: w * 0.74, y: h * 0.46))
+            p.move(to: CGPoint(x: m, y: h - m))
+            p.addLine(to: CGPoint(x: w - m, y: h - m))
+
+        case .trash:
+            // 垃圾桶：桶身梯形 + 顶盖 + 提手
+            p.move(to: CGPoint(x: m, y: h * 0.26))
+            p.addLine(to: CGPoint(x: w - m, y: h * 0.26))
+            p.move(to: CGPoint(x: w * 0.36, y: h * 0.26))
+            p.addLine(to: CGPoint(x: w * 0.36, y: m))
+            p.addLine(to: CGPoint(x: w * 0.64, y: m))
+            p.addLine(to: CGPoint(x: w * 0.64, y: h * 0.26))
+            p.move(to: CGPoint(x: w * 0.2, y: h * 0.26))
+            p.addLine(to: CGPoint(x: w * 0.28, y: h - m))
+            p.addLine(to: CGPoint(x: w * 0.72, y: h - m))
+            p.addLine(to: CGPoint(x: w * 0.8, y: h * 0.26))
+
+        case .shield:
+            // 盾牌：上宽下尖
+            p.move(to: CGPoint(x: w / 2, y: m))
+            p.addLine(to: CGPoint(x: w - m, y: h * 0.3))
+            p.addQuadCurve(to: CGPoint(x: w / 2, y: h - m),
+                           control: CGPoint(x: w - m, y: h * 0.78))
+            p.addQuadCurve(to: CGPoint(x: m, y: h * 0.3),
+                           control: CGPoint(x: m, y: h * 0.78))
+            p.closeSubpath()
+
+        case .drive:
+            // 外置盘：圆角矩形 + 底部指示灯
+            p.addRect(CGRect(x: m, y: m * 1.4, width: w - m * 2, height: h * 0.62))
+            p.move(to: CGPoint(x: w * 0.6, y: h * 0.7))
+            p.addLine(to: CGPoint(x: w * 0.78, y: h * 0.7))
+
+        case .tray:
+            // 托盘：梯形浅盘 + 中线
+            p.move(to: CGPoint(x: m, y: h * 0.42))
+            p.addLine(to: CGPoint(x: w - m, y: h * 0.42))
+            p.addLine(to: CGPoint(x: w - m * 1.6, y: h - m))
+            p.addLine(to: CGPoint(x: m * 1.6, y: h - m))
+            p.closeSubpath()
+            p.move(to: CGPoint(x: w * 0.3, y: h * 0.62))
+            p.addLine(to: CGPoint(x: w * 0.7, y: h * 0.62))
+
+        case .highlighter:
+            // 荧光笔：斜杆 + 笔尖
+            p.move(to: CGPoint(x: m, y: h - m))
+            p.addLine(to: CGPoint(x: w * 0.62, y: h * 0.38))
+            p.addLine(to: CGPoint(x: w - m, y: m))
+            p.move(to: CGPoint(x: w * 0.38, y: m))
+            p.addLine(to: CGPoint(x: w - m, y: h * 0.62))
+
+        case .pin:
+            // 图钉：圆头 + 针杆
+            let r = (w - m * 2) * 0.22
+            p.addEllipse(in: CGRect(x: w / 2 - r, y: m, width: r * 2, height: r * 2))
+            p.move(to: CGPoint(x: w / 2, y: m + r * 2))
+            p.addLine(to: CGPoint(x: w / 2, y: h - m))
+
+        case .play:
+            // 三角形（直线闭合 → 端点形状在三个顶点可辨）
+            p.move(to: CGPoint(x: m * 1.4, y: m))
+            p.addLine(to: CGPoint(x: w - m, y: h / 2))
+            p.addLine(to: CGPoint(x: m * 1.4, y: h - m))
+            p.closeSubpath()
+
+        case .pause:
+            p.move(to: CGPoint(x: w * 0.34, y: m))
+            p.addLine(to: CGPoint(x: w * 0.34, y: h - m))
+            p.move(to: CGPoint(x: w * 0.66, y: m))
+            p.addLine(to: CGPoint(x: w * 0.66, y: h - m))
 
         case .gear:
             // 齿轮：8 齿（端点形状在齿尖可辨）

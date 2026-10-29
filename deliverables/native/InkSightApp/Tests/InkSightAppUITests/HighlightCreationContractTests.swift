@@ -31,12 +31,15 @@ final class HighlightCreationContractTests: XCTestCase {
     }
 
     /// 选中后弹出**划线操作面板**（划线/笔记/标签/取消，3 步内）。
+    ///
+    /// D-97：图标已从 `Label(_:systemImage:)` 换成自绘 `InkIcon + Text`
+    /// （FR-028 第 ① 项全量替换），断言随之改查 `Text` 文案。
     func testSelectionActionsPanel() throws {
         let src = try readerSource()
-        XCTAssertTrue(src.contains("Label(\"划线\""), "须有划线动作")
-        XCTAssertTrue(src.contains("Label(\"笔记\""), "须有笔记动作")
-        XCTAssertTrue(src.contains("Label(\"标签\""), "须有标签动作")
-        XCTAssertTrue(src.contains("Label(\"取消\""), "须有取消")
+        XCTAssertTrue(src.contains("Text(\"划线\")"), "须有划线动作")
+        XCTAssertTrue(src.contains("Text(\"笔记\")"), "须有笔记动作")
+        XCTAssertTrue(src.contains("Text(\"标签\")"), "须有标签动作")
+        XCTAssertTrue(src.contains("Text(\"取消\")"), "须有取消")
     }
 
     /// 划线落库走 `HighlightsStore`（`charOffset + charLength + fingerprint`）。

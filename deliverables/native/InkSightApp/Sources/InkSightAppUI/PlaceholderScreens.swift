@@ -11,8 +11,7 @@ struct HonestPlaceholder: View {
     let screenName: String
     var body: some View {
         VStack(spacing: 12) {
-            Image(systemName: "tray")
-                .font(.system(size: 40))
+            InkIcon(.tray, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15)
                 .foregroundStyle(.tertiary)
             Text("\(screenName) · 本期骨架页")
                 .font(.headline)
@@ -108,11 +107,10 @@ struct InkScreen: View {
                     showSearch = true
                 } label: {
                     HStack {
-                        Image(systemName: "magnifyingglass")
+                        InkIcon(.search, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15)
                         Text("在本地书里找一句话")
                         Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
+                        InkIcon(.forward, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15)
                             .foregroundStyle(.tertiary)
                     }
                     .padding()
@@ -168,7 +166,7 @@ struct InkScreen: View {
                         Button {
                             showShareCard = true
                         } label: {
-                            Label("生成分享卡", systemImage: "square.and.arrow.up")
+                            HStack(spacing: 6) { InkIcon(.upload, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15); Text("生成分享卡") }
                                 .font(.caption)
                         }
                         .buttonStyle(.borderless)
@@ -235,7 +233,7 @@ struct ShelfScreen: View {
                     Text("书架").font(.title.bold())
                     Spacer()
                     Button(action: { showImporter = true }) {
-                        Label("导入本地 txt", systemImage: "square.and.arrow.down")
+                        HStack(spacing: 6) { InkIcon(.download, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15); Text("导入本地 txt") }
                     }
                 }
                 .padding()
@@ -429,7 +427,7 @@ private struct BookRow: View {
         .buttonStyle(.plain)
         .contextMenu {
             Button(role: .destructive, action: onAbandon) {
-                Label("弃读", systemImage: "trash")
+                HStack(spacing: 6) { InkIcon(.trash, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15); Text("弃读") }
             }
         }
         .accessibilityAction(named: "弃读") { onAbandon() }
@@ -515,7 +513,7 @@ struct MeScreen: View {
                     Button {
                         showComplaint = true
                     } label: {
-                        Label("版权声明与投诉", systemImage: "exclamationmark.shield")
+                        HStack(spacing: 6) { InkIcon(.shield, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15); Text("版权声明与投诉") }
                     }
                 } footer: {
                     Text("投诉通达邮箱为占位（发行前必须替换，发布闸门 A9/A10 不可豁免）；受理回执 48h，处理 15 工作日。")
@@ -573,8 +571,7 @@ struct MeScreen: View {
                                 Text(skin.displayName)
                                 Spacer()
                                 if currentSkin == skin {
-                                    Image(systemName: "checkmark")
-                                        .font(.caption)
+                                    InkIcon(.check, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15)
                                 }
                             }
                         }
@@ -591,7 +588,7 @@ struct MeScreen: View {
                     Button {
                         showBackup = true
                     } label: {
-                        Label("备份与恢复", systemImage: "externaldrive")
+                        HStack(spacing: 6) { InkIcon(.drive, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15); Text("备份与恢复") }
                     }
                 } footer: {
                     Text("导出阅读进度、排版与动效偏好（不含任何书籍正文）；格式带版本号，旧备份可迁移。")

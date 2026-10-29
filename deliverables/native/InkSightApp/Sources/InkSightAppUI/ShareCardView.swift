@@ -19,8 +19,7 @@ struct ShareCardView: View {
             VStack(spacing: 16) {
                 // 卡面：配色渐变（FR-023：配色生成，非第三方书封图）
                 VStack(spacing: 10) {
-                    Image(systemName: "drop.fill")
-                        .font(.system(size: 40))
+                    InkIcon(.drop, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15)
                         .foregroundStyle(.white)
                     Text("墨见 · 我的阅读")
                         .font(.headline)
@@ -41,7 +40,7 @@ struct ShareCardView: View {
                 )
 
                 ShareLink(item: shareText) {
-                    Label("分享", systemImage: "square.and.arrow.up")
+                    HStack(spacing: 6) { InkIcon(.upload, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15); Text("分享") }
                 }
             }
             .padding()

@@ -307,7 +307,7 @@ public struct ReaderSurfaceView: View {
                             showSelectionActions = false
                             selection = nil
                         } label: {
-                            Label("划线", systemImage: "highlighter")
+                            HStack(spacing: 6) { InkIcon(.highlighter, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15); Text("划线") }
                         }
                         Button {
                             // 划线+笔记（两步）
@@ -315,7 +315,7 @@ public struct ReaderSurfaceView: View {
                             showSelectionActions = false
                             selection = nil
                         } label: {
-                            Label("笔记", systemImage: "note.text")
+                            HStack(spacing: 6) { InkIcon(.note, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15); Text("笔记") }
                         }
                         Button {
                             // 划线+标签（两步）
@@ -323,13 +323,13 @@ public struct ReaderSurfaceView: View {
                             showSelectionActions = false
                             selection = nil
                         } label: {
-                            Label("标签", systemImage: "tag")
+                            HStack(spacing: 6) { InkIcon(.tag, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15); Text("标签") }
                         }
                         Button {
                             showSelectionActions = false
                             selection = nil
                         } label: {
-                            Label("取消", systemImage: "xmark")
+                            HStack(spacing: 6) { InkIcon(.close, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15); Text("取消") }
                         }
                     }
                     .padding(10)
@@ -789,8 +789,7 @@ public struct ReaderSurfaceView: View {
     private func readerTopBar(_ engine: ReaderEngine) -> some View {
         HStack(spacing: 12) {
             Button(action: onExit) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .semibold))
+                InkIcon(.back, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15)
             }
             .accessibilityLabel("退出阅读器")
             Spacer()
@@ -808,8 +807,7 @@ public struct ReaderSurfaceView: View {
 
     private var honestEmptyState: some View {
         VStack(spacing: 12) {
-            Image(systemName: "book.pages")
-                .font(.system(size: 40))
+            InkIcon(.book, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15)
                 .foregroundStyle(.tertiary)
             Text("阅读器 · 本期骨架页")
                 .font(.headline)
