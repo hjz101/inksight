@@ -12,9 +12,11 @@
 		19244F93E373B5AA3DECB77E /* MotionSettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2728D219F44C532088006ADB /* MotionSettingsStore.swift */; };
 		1A5CC2205CC133550C373F3D /* InkSightAppUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 3F678ED8DC428B3E5164C8EF /* InkSightAppUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		1C989F5C65BCFCEFB9832C88 /* ShareCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEF87BEA701528967F957B09 /* ShareCardView.swift */; };
+		1F35F9ACD9E8D352E5A27D0A /* ThemeWipeOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C237961F0292444C66CDD0C /* ThemeWipeOverlay.swift */; };
 		2253DF5835CB5A6FA122322C /* SQLiteCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45BA58A004D54D7D8EBE8EC9 /* SQLiteCache.swift */; };
 		246D3BC4E2787B79478220B6 /* VersionPickerPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97D699337917C256A9A28B64 /* VersionPickerPanel.swift */; };
 		25E23D5E8220A245A0C4C4DE /* VersionCompareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA9E480C547A1A8C694D697D /* VersionCompareView.swift */; };
+		27E2A7303B34311942E3E767 /* ColorHex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64668868EF77B13686A2771F /* ColorHex.swift */; };
 		2C72A61EAB8A71183E9AA60C /* HighlightsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6947B9AFA4DDDD89ED8131C9 /* HighlightsStore.swift */; };
 		32F5B7A86CA2B8334F41A146 /* PageAnchor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 383F5B9E4059A315E5DD6E92 /* PageAnchor.swift */; };
 		35BF906C65AB58128D03813F /* TTSEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE204623319903BA599B2643 /* TTSEngine.swift */; };
@@ -36,7 +38,6 @@
 		5CDC31AC4F6DBE58CDE0F03E /* LocalSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7E0F97D568F3ABCF5C02613 /* LocalSearchView.swift */; };
 		5DB9D0BFDEA601937ED16E3B /* TypographySignature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 816314BB15C666E643B9B66C /* TypographySignature.swift */; };
 		62EA95ABC8BD1907C69000A2 /* RepaginationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7B360A64E2A0619AE212F7B /* RepaginationScheduler.swift */; };
-		630057544E78A2D4E50CDAF7 /* ColorHex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48CE0A44B265694515CDD691 /* ColorHex.swift */; };
 		64AFF4FA0EB9980D24A52AA2 /* LocalSearchStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91D0F7EA753DA650DF0F10EF /* LocalSearchStore.swift */; };
 		65C5830224A42E21C52BD88F /* TypographyTiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D271BF84EC77950C29BDD5 /* TypographyTiers.swift */; };
 		6B767CDFBCF4864D3C99E3EA /* VersionAlignment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34D28EE148A9ACCD72D1F2B4 /* VersionAlignment.swift */; };
@@ -146,7 +147,6 @@
 		40B128EECA8959654EF19A68 /* OnlineProgressMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnlineProgressMapper.swift; sourceTree = "<group>"; };
 		45BA58A004D54D7D8EBE8EC9 /* SQLiteCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLiteCache.swift; sourceTree = "<group>"; };
 		46A122077DDB22AF9B11858E /* Degradation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Degradation.swift; sourceTree = "<group>"; };
-		48CE0A44B265694515CDD691 /* ColorHex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorHex.swift; sourceTree = "<group>"; };
 		4AF2E6060826B25D453919EA /* Kinsoku.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Kinsoku.swift; sourceTree = "<group>"; };
 		4B1E604E62A5C445A7557C26 /* ChapterScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChapterScanner.swift; sourceTree = "<group>"; };
 		521171D3C7AC8F3F8F26FDEB /* OrientationController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrientationController.swift; sourceTree = "<group>"; };
@@ -154,6 +154,7 @@
 		5A14D90C3B4EDC974F692D16 /* InkSightRootApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InkSightRootApp.swift; sourceTree = "<group>"; };
 		62DC36F8F2A37514F3EFD2CC /* ReaderNavigator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderNavigator.swift; sourceTree = "<group>"; };
 		632F296471EB3FC78F95ABEC /* InkSightAppKit.framework */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.framework; path = InkSightAppKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		64668868EF77B13686A2771F /* ColorHex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorHex.swift; sourceTree = "<group>"; };
 		6666D53ED47B69B760773711 /* ReadingProgressStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadingProgressStore.swift; sourceTree = "<group>"; };
 		6947B9AFA4DDDD89ED8131C9 /* HighlightsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighlightsStore.swift; sourceTree = "<group>"; };
 		6C12D643A713433EF6AB557A /* TypographyPresetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypographyPresetStore.swift; sourceTree = "<group>"; };
@@ -167,6 +168,7 @@
 		879E199AB185564F922E3AAA /* Bookmark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bookmark.swift; sourceTree = "<group>"; };
 		89FE4464C689C0C08F0317BC /* Typesetter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typesetter.swift; sourceTree = "<group>"; };
 		8BEF359FE4BA022A65C4F022 /* ReaderSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderSurface.swift; sourceTree = "<group>"; };
+		8C237961F0292444C66CDD0C /* ThemeWipeOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeWipeOverlay.swift; sourceTree = "<group>"; };
 		8D14086C7EFAE5D227B72CDD /* ReaderLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderLayout.swift; sourceTree = "<group>"; };
 		8E4CEE6752505ECE50F7AB2A /* ShakeRateLimiter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShakeRateLimiter.swift; sourceTree = "<group>"; };
 		91D0F7EA753DA650DF0F10EF /* LocalSearchStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalSearchStore.swift; sourceTree = "<group>"; };
@@ -270,6 +272,7 @@
 				879E199AB185564F922E3AAA /* Bookmark.swift */,
 				D892E20A3BA52AC074A4B6AA /* BookMetadata.swift */,
 				287507B7BD4CD0EDAB20078A /* BookShelfStore.swift */,
+				64668868EF77B13686A2771F /* ColorHex.swift */,
 				F0F086B44877022E6C64DD61 /* CopyrightComplaint.swift */,
 				019900092D509290CFB7BFFF /* CoreTextLineCompositor.swift */,
 				ABF17ED2E19B86E8F00BF3FD /* CredentialScanner.swift */,
@@ -333,7 +336,6 @@
 			children = (
 				782C62E28B8AF2572E990A08 /* AgeGateViews.swift */,
 				BF0092FDC70104C1C0594327 /* BackupView.swift */,
-				48CE0A44B265694515CDD691 /* ColorHex.swift */,
 				7D6802CCC3401B98801A3CA6 /* CopyrightComplaintView.swift */,
 				FB23E78EF62A841CF14A9334 /* GlassSurface.swift */,
 				AD81A68CC07F145C7D02ECFB /* InkSightRootApp.swift */,
@@ -348,6 +350,7 @@
 				B073B78BFA25C7D206B9EBA6 /* ReaderToolbar.swift */,
 				ECEFD1B847C548160928F508 /* RepaginationStatusModel.swift */,
 				EEF87BEA701528967F957B09 /* ShareCardView.swift */,
+				8C237961F0292444C66CDD0C /* ThemeWipeOverlay.swift */,
 				DFA149A9BD401AFE53FCE21B /* TTSPanel.swift */,
 				AE3E9B7C2BF3215584494B88 /* VersionCompareOverlay.swift */,
 				CA9E480C547A1A8C694D697D /* VersionCompareView.swift */,
@@ -508,6 +511,7 @@
 				985D1D610E133AA331CC9FCB /* BookMetadata.swift in Sources */,
 				74B29552CA7C853EB395BF47 /* BookShelfStore.swift in Sources */,
 				CA4C1445C2D7E49763AB24D7 /* Bookmark.swift in Sources */,
+				27E2A7303B34311942E3E767 /* ColorHex.swift in Sources */,
 				7BCAE676D945912DC34F7019 /* CopyrightComplaint.swift in Sources */,
 				148A64062D3B8B74682F0B3A /* CoreTextLineCompositor.swift in Sources */,
 				F752B44CECE1C0374145C99B /* CredentialScanner.swift in Sources */,
@@ -562,7 +566,6 @@
 			files = (
 				7287DCC4AD385572B1473F31 /* AgeGateViews.swift in Sources */,
 				48E7AB1D8A775E2CC7980FA2 /* BackupView.swift in Sources */,
-				630057544E78A2D4E50CDAF7 /* ColorHex.swift in Sources */,
 				88D05953A0F44E359D901A66 /* CopyrightComplaintView.swift in Sources */,
 				391E478AFE85A808C0E1B104 /* GlassSurface.swift in Sources */,
 				7529DC0C00DEB41C638DC5F8 /* InkSightRootApp.swift in Sources */,
@@ -578,6 +581,7 @@
 				481E8D8079671B2ED5D47E3A /* RepaginationStatusModel.swift in Sources */,
 				1C989F5C65BCFCEFB9832C88 /* ShareCardView.swift in Sources */,
 				365718C87891BB0507808EDC /* TTSPanel.swift in Sources */,
+				1F35F9ACD9E8D352E5A27D0A /* ThemeWipeOverlay.swift in Sources */,
 				91EC8D91A3BB329DF772018A /* VersionCompareOverlay.swift in Sources */,
 				25E23D5E8220A245A0C4C4DE /* VersionCompareView.swift in Sources */,
 				246D3BC4E2787B79478220B6 /* VersionPickerPanel.swift in Sources */,
