@@ -926,7 +926,9 @@ struct ReaderPager: View {
     var body: some View {
         switch mode {
         case .none:
-            ReaderPageCanvas(engine: engine, pageIndex: page, theme: theme)
+            ReaderPageCanvas(engine: engine, pageIndex: page,
+                             containerSize: ReaderLayout.shared.containerSize,
+                             theme: theme)
         case .scroll, .flip, .curl:
             pagingScroll(.horizontal)
         case .vertical:
@@ -962,7 +964,8 @@ struct ReaderPager: View {
                 if axis == .horizontal {
                     LazyHStack(spacing: 0) {
                         ForEach(0..<engine.pageCount, id: \.self) { idx in
-                            ReaderPageCanvas(engine: engine, pageIndex: idx, theme: theme)
+                            ReaderPageCanvas(engine: engine, pageIndex: idx,
+                                             containerSize: geo.size, theme: theme)
                                 .frame(width: geo.size.width, height: geo.size.height)
                                 .id(idx)
                         }
@@ -971,7 +974,8 @@ struct ReaderPager: View {
                 } else {
                     LazyVStack(spacing: 0) {
                         ForEach(0..<engine.pageCount, id: \.self) { idx in
-                            ReaderPageCanvas(engine: engine, pageIndex: idx, theme: theme)
+                            ReaderPageCanvas(engine: engine, pageIndex: idx,
+                                             containerSize: geo.size, theme: theme)
                                 .frame(width: geo.size.width, height: geo.size.height)
                                 .id(idx)
                         }
@@ -1000,16 +1004,30 @@ struct ReaderPager: View {
 struct ReaderPageCanvas: View {
     let engine: ReaderEngine
     let pageIndex: Int
-    /// 阅读主题（FR-010）：决定纸面底色与正文墨色。
-    var theme: ThemeState = ThemeState()
+    /// 容器尺寸（FR-018-ac c：算图片占位宽度需要正文宽）。
+    var containerSize: CGSize = CGSize(width: 393, height: 852)
     /// 生效的皮肤（由 ReaderSurfaceView 按小时解析后传入；nil 时用 theme.skin）。
     var effectiveSkin: ThemeSkin?
+    /// 阅读主题（FR-010）：决定纸面底色与正文墨色。
+    var theme: ThemeState = ThemeState()
 
     var body: some View {
         Canvas { context, _ in
             guard let page = engine.page(at: pageIndex) else { return }
             let comp = CoreTextLineCompositor(text: engine.chapterText, typography: engine.typography)
             let ys = comp.yTopPositions(for: page)
+
+            // **FR-018-ac c：图片占位块**（图文混排书保留图片位置）
+            // 占位标记独占一段，其所在行不画文字，改画 3:4 占位块。
+            let placeholders = ImagePlaceholderLayout.placeholders(
+                in: page,
+                chapterText: engine.chapterText,
+                typography: engine.typography,
+                containerSize: containerSize,
+                yTopPositions: ys,
+                token: EpubTextExtractor.imagePlaceholderToken
+            )
+            let skipLines = Set(placeholders.map(\.lineIndex))
 
             context.withCGContext { cg in
                 cg.saveGState()
@@ -1019,12 +1037,43 @@ struct ReaderPageCanvas: View {
                 cg.setStrokeColor(ink)
 
                 for (i, line) in page.lines.enumerated() {
+                    guard !skipLines.contains(i) else { continue }   // 占位行不画文字
                     let ctLine = comp.line(for: line)
                     var ascent: CGFloat = 0, descent: CGFloat = 0, lead: CGFloat = 0
                     CTLineGetTypographicBounds(ctLine, &ascent, &descent, &lead)
                     let baseline = ys[i] + ascent
                     cg.textPosition = CGPoint(x: comp.leading, y: baseline)
                     CTLineDraw(ctLine, cg)
+                }
+
+                // 画占位块（浅色填充 + 1pt 描边 + 居中图标提示）
+                for ph in placeholders {
+                    cg.setFillColor(Self.cgColor(hex: theme.backgroundHex).copy(alpha: 1) ?? ink)
+                    // 用墨色 8% 做填充（浅色块，与纸面可区分）
+                    let fill = (Self.cgColor(hex: theme.textHex).copy(alpha: 0.06)) ?? ink
+                    cg.setFillColor(fill)
+                    cg.fill(ph.rect)
+                    let stroke = (Self.cgColor(hex: theme.textHex).copy(alpha: 0.18)) ?? ink
+                    cg.setStrokeColor(stroke)
+                    cg.setLineWidth(1)
+                    cg.stroke(ph.rect)
+
+                    // 居中画一个"山与太阳"的图片符号（纯几何，不用 SF Symbol）
+                    let s = min(ph.rect.width, ph.rect.height) * 0.18
+                    let cx = ph.rect.midX, cy = ph.rect.midY
+                    let iconColor = (Self.cgColor(hex: theme.textHex).copy(alpha: 0.28)) ?? ink
+                    cg.setStrokeColor(iconColor)
+                    cg.setFillColor(iconColor)
+                    // 太阳
+                    cg.fillEllipse(in: CGRect(x: cx - s * 0.7, y: cy - s * 0.5,
+                                              width: s * 0.45, height: s * 0.45))
+                    // 山（折线）
+                    cg.move(to: CGPoint(x: cx - s, y: cy + s * 0.6))
+                    cg.addLine(to: CGPoint(x: cx - s * 0.35, y: cy - s * 0.2))
+                    cg.addLine(to: CGPoint(x: cx + s * 0.2, y: cy + s * 0.35))
+                    cg.addLine(to: CGPoint(x: cx + s * 0.7, y: cy - s * 0.1))
+                    cg.addLine(to: CGPoint(x: cx + s, y: cy + s * 0.6))
+                    cg.strokePath()
                 }
                 cg.restoreGState()
             }
