@@ -96,6 +96,10 @@ struct InkScreen: View {
     @StateObject private var metricsModel = ReadingMetricsModel.shared
     /// 分享卡是否呈现。
     @State private var showShareCard = false
+    /// FR-023：阅读轨迹切换点（已合并）。
+    @State private var trajectoryDots: [TrajectoryDot] = []
+    /// FR-023：展开说明的点。
+    @State private var expandedDotID: String?
 
     var body: some View {
         ScrollView {
@@ -162,6 +166,31 @@ struct InkScreen: View {
                         Text("每日阅读时长上限：以家长侧设置为准")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
+                        // **FR-023 阅读轨迹**：切换点用 6pt 中性圆点标在进度轴上
+                        // （间距 <12pt 合并 + 「+N」；点击只出中性说明）
+                        if !trajectoryDots.isEmpty {
+                            Divider()
+                            Text("阅读轨迹").font(.caption).foregroundStyle(.secondary)
+                            GeometryReader { geo in
+                                ZStack(alignment: .leading) {
+                                    // 轨迹轴（细线，中性色）
+                                    Capsule()
+                                        .fill(Color.secondary.opacity(0.2))
+                                        .frame(height: 1)
+                                    ForEach(trajectoryDots) { dot in
+                                        TrajectoryDotView(dot: dot,
+                                                          isExpanded: expandedDotID == dot.id)
+                                            .position(x: geo.size.width * dot.position,
+                                                      y: geo.size.height / 2)
+                                            .onTapGesture {
+                                                expandedDotID = (expandedDotID == dot.id) ? nil : dot.id
+                                            }
+                                    }
+                                }
+                            }
+                            .frame(height: 28)
+                        }
+
                         // 分享卡（配色生成，非第三方书封）
                         Button {
                             showShareCard = true
@@ -177,6 +206,13 @@ struct InkScreen: View {
                 .onAppear {
                     metricsModel.bookShelf = bookShelf
                     metricsModel.refresh()
+                    // FR-023：轨迹轴长度按基准视口估算（393 - 80 内边距 = 313pt）
+                    // **不用 UIScreen**（iOS 专属，macOS 测试构建编译不过）；
+                    // 313pt 是 DESIGN §2.6 基准视口口径，真实屏宽差异只影响像素间距，
+                    // 而合并阈值判据本身就是"视觉上挤不挤"，用基准值足够。
+                    let axisLength: CGFloat = 313
+                    trajectoryDots = TrajectoryRenderer.dots(from: TrajectoryLog(),
+                                                             axisLength: axisLength)
                 }
                 .sheet(isPresented: $showShareCard) {
                     ShareCardView(lines: metricsModel.shareLines())

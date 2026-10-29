@@ -93,15 +93,52 @@ final class EpubTextExtractorTests: XCTestCase {
         XCTAssertFalse(result.text.contains("var x=1"), "script 内容不得进正文")
     }
 
-    /// 空章（纯图片页）跳过，不产生空章节。
-    func testEmptyChaptersSkipped() throws {
+    /// **纯图片页保留图片占位**（D-102 行为变更）。
+    ///
+    /// 此前直接删掉 `<img>` → 图文混排书的图片位置**整体上移**，
+    /// 与 FR-018-ac c「图片占位是排版参数」矛盾。现在 `<img>` 换成占位标记，
+    /// 该章**不再被当作空章跳过**（有占位块就是有内容）。
+    func testImageOnlyChapterKeepsPlaceholder() throws {
         let data = makeEpub(chapters: [
             ("", "<div><img src='c.jpg'/></div>"),
             ("正文", "<p>有内容的章节。</p>"),
         ])
         let result = try EpubTextExtractor.extract(from: data)
         XCTAssertTrue(result.text.contains("有内容的章节"))
-        XCTAssertEqual(result.chapterTitles, ["正文"], "无文字章节应跳过（只剩有内容的章）")
+        XCTAssertTrue(result.text.contains(EpubTextExtractor.imagePlaceholderToken),
+                      "图片页应保留占位标记，不得整章丢弃")
+        XCTAssertEqual(result.chapterTitles.count, 2,
+                       "有图片占位的章不算空章")
+    }
+
+    /// 真正的空章（无文字无图）仍跳过。
+    func testTrulyEmptyChapterSkipped() throws {
+        let data = makeEpub(chapters: [
+            ("", "<div></div>"),
+            ("正文", "<p>有内容的章节。</p>"),
+        ])
+        let result = try EpubTextExtractor.extract(from: data)
+        XCTAssertEqual(result.chapterTitles, ["正文"], "无文字无图的章应跳过")
+    }
+
+    /// 图文混排：文字与图片占位**都在**，顺序不乱。
+    func testMixedTextAndImage() throws {
+        let data = makeEpub(chapters: [
+            ("第一章", "<p>图前的文字。</p><img src='a.jpg'/><p>图后的文字。</p>")
+        ])
+        let result = try EpubTextExtractor.extract(from: data)
+        XCTAssertTrue(result.text.contains("图前的文字"))
+        XCTAssertTrue(result.text.contains("图后的文字"))
+        XCTAssertTrue(result.text.contains(EpubTextExtractor.imagePlaceholderToken))
+        // 顺序：前文字 < 占位 < 后文字
+        let beforeIdx = result.text.range(of: "图前的文字")?.lowerBound
+        let phIdx = result.text.range(of: EpubTextExtractor.imagePlaceholderToken)?.lowerBound
+        let afterIdx = result.text.range(of: "图后的文字")?.lowerBound
+        if let b = beforeIdx, let p = phIdx, let a = afterIdx {
+            XCTAssertTrue(b < p && p < a, "文字/图片顺序须保持")
+        } else {
+            XCTFail("三段内容都应在正文中")
+        }
     }
 
     /// 无 spine → 明确抛错（不返回空文本假装成功）。

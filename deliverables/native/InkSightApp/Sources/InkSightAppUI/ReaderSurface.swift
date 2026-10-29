@@ -91,6 +91,8 @@ public struct ReaderSurfaceView: View {
     @State private var showTTS = false
     /// FR-012 锁屏可控：Now Playing ＋ 遥控命令桥。
     @State private var nowPlaying = TTSNowPlayingBridge()
+    /// FR-012：章末是否自动续读下一章（长文本连续听）。
+    @State private var ttsAutoContinue = true
     /// FR-028：当前皮肤规格（四项联动：图标/强调色/玻璃/转场）。
     @State private var skinSpec = ThemeSkinSpec.spec(for: ThemeSkinStore().skin)
     /// FR-018 版本对比：对比报告（nil ＝ 未打开）。
@@ -296,6 +298,12 @@ public struct ReaderSurfaceView: View {
                                         stop: { tts.stop() }
                                     )
                                 )
+                                // **FR-012 续章**：本章读完 → 自动加载下一章继续朗读
+                                // （长文本连续听；末章读完则停止，不循环）。
+                                tts.onFinishedChapter = {
+                                    guard ttsAutoContinue else { return }
+                                    continueReadingNextChapter()
+                                }
                             }
                             showTTS = true
                         }
@@ -591,6 +599,37 @@ public struct ReaderSurfaceView: View {
             && location.y >= thirdH && location.y <= thirdH * 2
     }
 
+    /// FR-012：本章朗读完毕 → 加载下一章并继续朗读。
+    ///
+    /// 纪律：
+    /// - **末章停止**（不循环、不回第一章——循环会让用户以为"读不完"）；
+    /// - 续章走与目录跳转同一条路径（`jumpToChapter`），保证行为一致；
+    /// - 续章后**重新接 Now Playing**（章节名变了，锁屏要同步）。
+    private func continueReadingNextChapter() {
+        guard let live = session.engine,
+              let shelf = bookShelf,
+              let item = shelf.item(for: live.bookID) else { return }
+        let next = live.chapterID + 1
+        guard next < item.chapters.count else {
+            // 末章：停止朗读（不循环）
+            tts.stop()
+            nowPlaying.end()
+            highlightToast = "已读完本书"
+            return
+        }
+        jumpToChapter(next)
+        guard let newLive = session.engine else { return }
+        tts.start(text: newLive.chapterText, startingOffset: 0)
+        nowPlaying.updateNowPlaying(title: item.title,
+                                    chapterTitle: "第 \(next + 1) 章",
+                                    elapsed: 0, isPlaying: true)
+        // 续章后重新挂回调（tts.start 会清空引擎内部状态）
+        tts.onFinishedChapter = { [ttsAutoContinue] in
+            guard ttsAutoContinue else { return }
+            continueReadingNextChapter()
+        }
+    }
+
     /// FR-023：上报本次阅读时长到墨量统计（退出阅读器时调用）。
     ///
     /// 口径：本次会话真实时长（进入→退出）；**<1 分钟不记录**（避免翻一眼就计入的噪声）。
@@ -787,6 +826,17 @@ public struct ReaderSurfaceView: View {
         session.adopt(newEngine)
         session.restoreLanding()
         lastAlignment = alignment
+
+        // **FR-023 轨迹点**：记录本次文件切换的进度比例（只存位置，不存身份）。
+        // 比例口径：章节序号 + 章内偏移 → 全书近似进度。
+        if let shelf = bookShelf, let item = shelf.item(for: target.bookID) {
+            let chapterCount = max(item.chapters.count, 1)
+            let chapterRatio = Double(chapterIndex) / Double(chapterCount)
+            let inChapter = ns.length > 0 ? Double(currentOffset) / Double(ns.length) : 0
+            let overall = min(max(chapterRatio + inChapter / Double(chapterCount), 0), 1)
+            var log = TrajectoryLog()
+            try? log.recordSwitch(at: overall)
+        }
 
         // **回写书架**（FR-018）：切换版本后，书架项的「继续阅读」锚点要指向新副本的目标位置，
         // 否则回到书架再点开仍是旧位置。`lastReadAnchor` 是 `ReadingProgress`（4 字段无 pageIndex）。

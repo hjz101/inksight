@@ -143,6 +143,10 @@ public enum EpubTextExtractor {
         // 2) 去 script/style 整段（内容不是正文）
         out = removeElement("script", from: out)
         out = removeElement("style", from: out)
+        // 2.5) **图片保留占位**（FR-018-ac c：图片占位是排版参数，不是"删掉"）
+        //      `<img>` → 一个占位标记段落；渲染层据此插入 3:4 占位块。
+        //      直接删掉会让图文混排书的图片位置**整体上移**，与"零位移"承诺矛盾。
+        out = replaceImageTags(in: out)
         // 3) 去剩余标签
         out = removeRegex(out, pattern: "<[^>]+>")
         // 4) 实体解码
@@ -174,6 +178,21 @@ public enum EpubTextExtractor {
             }
         }
         return result.joined(separator: "\n")
+    }
+
+    /// 图片占位标记（单行，独占一段）。
+    ///
+    /// 用不可见字符包裹，避免与真实正文冲突，同时人眼可读便于调试。
+    public static let imagePlaceholderToken = "\u{FFFC}[图片]"
+
+    /// 把 `<img ...>` 替换为占位标记（独占一行）。
+    static func replaceImageTags(in s: String) -> String {
+        guard let re = try? NSRegularExpression(pattern: "<img[^>]*>",
+                                               options: [.caseInsensitive]) else { return s }
+        let range = NSRange(location: 0, length: (s as NSString).length)
+        // 前后加换行，保证占位块独占一段（渲染层按段落识别）
+        return re.stringByReplacingMatches(in: s, range: range,
+                                           withTemplate: "\n\(imagePlaceholderToken)\n")
     }
 
     private static func removeElement(_ name: String, from s: String) -> String {

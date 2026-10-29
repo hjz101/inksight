@@ -65,6 +65,7 @@
 		8C6C8F7C16976C6E9548B817 /* PaginationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75590CCF89F32C7E2C589CE1 /* PaginationCoordinator.swift */; };
 		8E060A82B6C6626BABB8DC09 /* ReadingTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1885D66E9E2FE65AA00CE47 /* ReadingTheme.swift */; };
 		91EC8D91A3BB329DF772018A /* VersionCompareOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE3E9B7C2BF3215584494B88 /* VersionCompareOverlay.swift */; };
+		91F96D749B3A1839DEDC2016 /* TrajectoryLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE9FE53A8584EC9AE787DE70 /* TrajectoryLog.swift */; };
 		931CDAC91A214C3D8CF7A82B /* AgeRangeProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7147958C58600582708E9E8E /* AgeRangeProviding.swift */; };
 		985D1D610E133AA331CC9FCB /* BookMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = D892E20A3BA52AC074A4B6AA /* BookMetadata.swift */; };
 		9ED031FA613260E24EDB071D /* GuardianSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0847D74B2D549A51EE20A361 /* GuardianSession.swift */; };
@@ -221,6 +222,7 @@
 		E972519049C0D5BB76D772BA /* MotionEffectCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionEffectCatalog.swift; sourceTree = "<group>"; };
 		E9A5E1BBE483B4A6EC9C78ED /* MotionRuntimeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionRuntimeScreen.swift; sourceTree = "<group>"; };
 		ECEFD1B847C548160928F508 /* RepaginationStatusModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepaginationStatusModel.swift; sourceTree = "<group>"; };
+		EE9FE53A8584EC9AE787DE70 /* TrajectoryLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrajectoryLog.swift; sourceTree = "<group>"; };
 		EEF87BEA701528967F957B09 /* ShareCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCardView.swift; sourceTree = "<group>"; };
 		F0F086B44877022E6C64DD61 /* CopyrightComplaint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopyrightComplaint.swift; sourceTree = "<group>"; };
 		F19E86DDF0BD1A2A64F308C0 /* AgeGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgeGate.swift; sourceTree = "<group>"; };
@@ -387,6 +389,7 @@
 				E46EA78DE4E03324AFE13026 /* TagManagementView.swift */,
 				8C237961F0292444C66CDD0C /* ThemeWipeOverlay.swift */,
 				29C4A2E505BA25BA66376954 /* TrajectoryDotView.swift */,
+				EE9FE53A8584EC9AE787DE70 /* TrajectoryLog.swift */,
 				DFA149A9BD401AFE53FCE21B /* TTSPanel.swift */,
 				AE3E9B7C2BF3215584494B88 /* VersionCompareOverlay.swift */,
 				CA9E480C547A1A8C694D697D /* VersionCompareView.swift */,
@@ -630,6 +633,7 @@
 				AF23EA54476C2AFFF17498CD /* TagManagementView.swift in Sources */,
 				1F35F9ACD9E8D352E5A27D0A /* ThemeWipeOverlay.swift in Sources */,
 				46CCE831D3A913D84EEF22D6 /* TrajectoryDotView.swift in Sources */,
+				91F96D749B3A1839DEDC2016 /* TrajectoryLog.swift in Sources */,
 				91EC8D91A3BB329DF772018A /* VersionCompareOverlay.swift in Sources */,
 				25E23D5E8220A245A0C4C4DE /* VersionCompareView.swift in Sources */,
 				246D3BC4E2787B79478220B6 /* VersionPickerPanel.swift in Sources */,
