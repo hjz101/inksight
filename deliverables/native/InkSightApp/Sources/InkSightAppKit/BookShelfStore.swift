@@ -17,6 +17,8 @@ public struct BookShelfItem: Equatable, Sendable {
     public let title: String
     /// FR-007 元数据：作者（导入时从文件名/OPF 解析，可手改）。
     public let author: String?
+    /// FR-007 元数据：封面图字节（epub OPF 提取；nil ＝ 无封面 → 书架卡用配色占位）。
+    public let coverImageData: Data?
     public let source: BookSource
     public let importDate: Date
     public let chapterCount: Int
@@ -27,6 +29,7 @@ public struct BookShelfItem: Equatable, Sendable {
     public var lastReadAnchor: ReadingProgress?
 
     public init(bookID: String, title: String, author: String? = nil,
+                coverImageData: Data? = nil,
                 source: BookSource,
                 importDate: Date, chapterCount: Int,
                 fileURL: URL? = nil, chapters: [ChapterAnchor] = [],
@@ -34,6 +37,7 @@ public struct BookShelfItem: Equatable, Sendable {
         self.bookID = bookID
         self.title = title
         self.author = author
+        self.coverImageData = coverImageData
         self.source = source
         self.importDate = importDate
         self.chapterCount = chapterCount

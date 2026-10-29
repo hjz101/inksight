@@ -62,6 +62,8 @@ public struct ReaderSurfaceView: View {
     @State private var dogEarActive = false
     /// EGG4 折角：跟手的位移（pt）。
     @State private var dogEarTranslation: CGFloat = 0
+    /// EGG4 折角：当前折角尺寸（24→60pt）。
+    @State private var dogEarSize: CGFloat = DogEarView.minSize
     /// EGG4 折角：吸附后的静态折角（写书签成功时置为 true）。
     @State private var dogEarSnapped = false
     /// EGG4：长按判定延时任务（到 300ms 才真正进入折角；提前抬手则取消 → 判为短按翻页）。
@@ -87,6 +89,8 @@ public struct ReaderSurfaceView: View {
     @StateObject private var tts = TTSEngine()
     /// FR-012：朗读面板是否呈现。
     @State private var showTTS = false
+    /// FR-012 锁屏可控：Now Playing ＋ 遥控命令桥。
+    @State private var nowPlaying = TTSNowPlayingBridge()
     /// FR-028：当前皮肤规格（四项联动：图标/强调色/玻璃/转场）。
     @State private var skinSpec = ThemeSkinSpec.spec(for: ThemeSkinStore().skin)
     /// FR-018 版本对比：对比报告（nil ＝ 未打开）。
@@ -180,6 +184,8 @@ public struct ReaderSurfaceView: View {
                                     }
                                     if dogEarActive {
                                         dogEarTranslation = value.translation.height
+                                        // EGG4：24→60pt 随拉动增长
+                                        dogEarSize = DogEarView.size(forTranslation: dogEarTranslation)
                                     }
                                 }
                                 .onEnded { _ in
@@ -207,10 +213,23 @@ public struct ReaderSurfaceView: View {
                                         }
                                     } else {
                                         dogEarSnapped = false   // 回弹，不写书签
+                                        dogEarSize = DogEarView.minSize
                                     }
                                     dogEarActive = false
                                     dogEarTranslation = 0
                                     glassPresentation = .steady
+
+                                    // EGG4：吸附后**保持 3s** 再消失（PRD 原文）
+                                    if dogEarSnapped {
+                                        Task { @MainActor in
+                                            try? await Task.sleep(
+                                                for: .seconds(DogEarView.holdDuration))
+                                            withAnimation(.easeOut(duration: 0.25)) {
+                                                dogEarSnapped = false
+                                                dogEarSize = DogEarView.minSize
+                                            }
+                                        }
+                                    }
                                 }
                         )
                         // 手势期间玻璃降为纯色（`.gesture`），结束后 120ms 淡回。
@@ -266,6 +285,17 @@ public struct ReaderSurfaceView: View {
                             if tts.state == .idle, let live = session.engine {
                                 let offset = live.page(at: session.currentPage)?.anchor.charOffset ?? 0
                                 tts.start(text: live.chapterText, startingOffset: offset)
+                                // FR-012 锁屏可控：激活音频会话 ＋ 注册遥控 ＋ 设 Now Playing
+                                let item = bookShelf?.item(for: live.bookID)
+                                nowPlaying.begin(
+                                    title: item?.title ?? "墨见",
+                                    chapterTitle: "第 \(live.chapterID + 1) 章",
+                                    handlers: .init(
+                                        play: { tts.state == .paused ? tts.resume() : () },
+                                        pause: { tts.pause() },
+                                        stop: { tts.stop() }
+                                    )
+                                )
                             }
                             showTTS = true
                         }
@@ -287,6 +317,15 @@ public struct ReaderSurfaceView: View {
             OrientationController.shared.lockReaderToPortrait()
             // **FR-023**：记录本次阅读开始时刻（退出时算时长）。
             sessionStart = Date()
+        }
+        // **EGG4 折角视觉**（24→60pt / 吸附后保持 3s）
+        .overlay(alignment: .bottomTrailing) {
+            if dogEarActive || dogEarSnapped {
+                DogEarView(size: dogEarSize,
+                           inkHex: theme.textHex,
+                           paperHex: theme.backgroundHex)
+                    .transition(.opacity)
+            }
         }
         // FR-012 朗读面板
         .overlay {
@@ -486,6 +525,8 @@ public struct ReaderSurfaceView: View {
             OrientationController.shared.unlockAfterReader()
             // **FR-012**：退出阅读器停止朗读（会话结束，不留后台朗读）。
             tts.stop()
+            // 清空锁屏信息 ＋ 注销遥控 ＋ 释放音频会话
+            nowPlaying.end()
             // **FR-023 墨量统计**：上报本次阅读时长（<1 分钟不计，避免噪声）。
             recordReadingSessionIfPossible()
         }

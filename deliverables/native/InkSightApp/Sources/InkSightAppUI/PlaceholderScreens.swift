@@ -407,7 +407,9 @@ private struct BookRow: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack {
+            HStack(spacing: 10) {
+                // FR-007：封面（有则真封面，无则配色占位——不用第三方书封）
+                BookCoverView(title: item.title, coverData: item.coverImageData)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(item.title).font(.subheadline.weight(.medium))
                     // FR-007：导入即显示作者（无作者时不显示这一行，诚实空态）

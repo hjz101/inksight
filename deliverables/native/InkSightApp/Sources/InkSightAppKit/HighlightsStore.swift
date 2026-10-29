@@ -61,6 +61,55 @@ public final class HighlightsStore: @unchecked Sendable {
     }
 
     /// 按标签聚合（FR-013 标签；FR-022 一个标签跨书聚合的基础）。
+    /// FR-022 标签管理：重命名标签（跨全部划线批量改）。
+    ///
+    /// - Returns: 受影响的划线数（0 ＝ 该标签不存在）。
+    @discardableResult
+    public func renameTag(_ old: String, to new: String) -> Int {
+        let trimmed = new.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, old != trimmed else { return 0 }
+        lock.lock(); defer { lock.unlock() }
+        var affected = 0
+        for i in highlights.indices {
+            if let idx = highlights[i].tags.firstIndex(of: old) {
+                // 去重：若已存在目标标签，则删掉旧标签而非产生重复
+                if highlights[i].tags.contains(trimmed) {
+                    highlights[i].tags.remove(at: idx)
+                } else {
+                    highlights[i].tags[idx] = trimmed
+                }
+                affected += 1
+            }
+        }
+        return affected
+    }
+
+    /// FR-022 标签管理：删除标签（从全部划线移除该标签，划线本身保留）。
+    ///
+    /// - Returns: 受影响的划线数。
+    @discardableResult
+    public func deleteTag(_ tag: String) -> Int {
+        lock.lock(); defer { lock.unlock() }
+        var affected = 0
+        for i in highlights.indices {
+            let before = highlights[i].tags.count
+            highlights[i].tags.removeAll { $0 == tag }
+            if highlights[i].tags.count != before { affected += 1 }
+        }
+        return affected
+    }
+
+    /// FR-022：全部标签及使用次数（供标签管理界面）。
+    public func tagUsage() -> [(tag: String, count: Int)] {
+        lock.lock(); defer { lock.unlock() }
+        var counts: [String: Int] = [:]
+        for h in highlights {
+            for t in h.tags { counts[t, default: 0] += 1 }
+        }
+        return counts.map { (tag: $0.key, count: $0.value) }
+            .sorted { $0.count == $1.count ? $0.tag < $1.tag : $0.count > $1.count }
+    }
+
     public func highlights(tag: String) -> [Highlight] {
         lock.lock(); defer { lock.unlock() }
         return highlights.filter { $0.tags.contains(tag) }

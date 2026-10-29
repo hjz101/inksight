@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		06EED3BCE8F699190A2928A1 /* Degradation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46A122077DDB22AF9B11858E /* Degradation.swift */; };
+		0DCD80BBDCA0FB616C5404C1 /* ReaderScheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD558378A769C3EB7EE0A4FB /* ReaderScheme.swift */; };
 		148A64062D3B8B74682F0B3A /* CoreTextLineCompositor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019900092D509290CFB7BFFF /* CoreTextLineCompositor.swift */; };
 		19244F93E373B5AA3DECB77E /* MotionSettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2728D219F44C532088006ADB /* MotionSettingsStore.swift */; };
 		1A5CC2205CC133550C373F3D /* InkSightAppUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 3F678ED8DC428B3E5164C8EF /* InkSightAppUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -29,10 +30,12 @@
 		3F4B207B8FCCDA11ACD84651 /* InkSightAppUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3F678ED8DC428B3E5164C8EF /* InkSightAppUI.framework */; };
 		40AB9AB6717137082A78BFDB /* AgeGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19E86DDF0BD1A2A64F308C0 /* AgeGate.swift */; };
 		45CB1B91E3C5874F7D5EDBEB /* ReaderTOCSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B0F62041C2BBDE308921646 /* ReaderTOCSheet.swift */; };
+		46CCE831D3A913D84EEF22D6 /* TrajectoryDotView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29C4A2E505BA25BA66376954 /* TrajectoryDotView.swift */; };
 		481E8D8079671B2ED5D47E3A /* RepaginationStatusModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECEFD1B847C548160928F508 /* RepaginationStatusModel.swift */; };
 		4875529CDE8B1F11F3495A84 /* InkSightRootApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A14D90C3B4EDC974F692D16 /* InkSightRootApp.swift */; };
 		48E7AB1D8A775E2CC7980FA2 /* BackupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF0092FDC70104C1C0594327 /* BackupView.swift */; };
 		4CB4E962E4ED4377B193641F /* OrientationController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 521171D3C7AC8F3F8F26FDEB /* OrientationController.swift */; };
+		50F4595EEC8A666C067FCA5F /* BookCoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 503392E75B5515386D097600 /* BookCoverView.swift */; };
 		574FDDC88F0A52D658137DF9 /* ReaderLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D14086C7EFAE5D227B72CDD /* ReaderLayout.swift */; };
 		5786BB6AC8538E0466B30EC6 /* TypographyPresetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C12D643A713433EF6AB557A /* TypographyPresetStore.swift */; };
 		5BD0C7966E5A8A9B9DCB52D7 /* OnlineProgressMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40B128EECA8959654EF19A68 /* OnlineProgressMapper.swift */; };
@@ -77,10 +80,12 @@
 		D96E3575E759BC5DE2C1EF4C /* InkIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB75CC4A5A83003FDB4E1A3C /* InkIcon.swift */; };
 		DB64F1F9DE7269F3AA34FCF8 /* ReaderNavigator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62DC36F8F2A37514F3EFD2CC /* ReaderNavigator.swift */; };
 		DB8D3EEE3BE099BCAF0ED32B /* SelectionMapping.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38518753B4AC8B5635416E2B /* SelectionMapping.swift */; };
+		DC9D65021A6CF869D795D8E9 /* TTSNowPlayingBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30D94491C0B31FCA76A71413 /* TTSNowPlayingBridge.swift */; };
 		DCF562A747F95E74EECD5F31 /* SampleChapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 803DACDE11F0237C2BF47917 /* SampleChapter.swift */; };
 		DD895DB6F769268EF7BEC0EC /* ReadingMetricsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3267926F202E569B68EC060D /* ReadingMetricsModel.swift */; };
 		DE8E52CD267E1C0F96C404FF /* Highlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927D134B995AB45CC49F6BA3 /* Highlight.swift */; };
 		E635E6D0A2212F93262D55C2 /* ReaderEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3563C59C0886344285A5A617 /* ReaderEngine.swift */; };
+		E858A2389DE96D2D386B575A /* DogEarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FD68723F7F4507D648BF27B /* DogEarView.swift */; };
 		ECB79AE6502ED93FA7B74429 /* ShakeRateLimiter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E4CEE6752505ECE50F7AB2A /* ShakeRateLimiter.swift */; };
 		ECFABCD07AF6935081589DAE /* VersionDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CFED9136E40678BF29C5C5F /* VersionDiscovery.swift */; };
 		F1B2101987E09007A0BEE569 /* DogEarGestureResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B57FBCA06E057C3FF77DAB /* DogEarGestureResolver.swift */; };
@@ -136,8 +141,10 @@
 		17376FEA892CDDABDDAF320B /* MotionEffects.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionEffects.swift; sourceTree = "<group>"; };
 		2728D219F44C532088006ADB /* MotionSettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionSettingsStore.swift; sourceTree = "<group>"; };
 		287507B7BD4CD0EDAB20078A /* BookShelfStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookShelfStore.swift; sourceTree = "<group>"; };
+		29C4A2E505BA25BA66376954 /* TrajectoryDotView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrajectoryDotView.swift; sourceTree = "<group>"; };
 		2CFED9136E40678BF29C5C5F /* VersionDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionDiscovery.swift; sourceTree = "<group>"; };
 		2FA0797BC2BAC508D357261C /* GuardianCredential.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuardianCredential.swift; sourceTree = "<group>"; };
+		30D94491C0B31FCA76A71413 /* TTSNowPlayingBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TTSNowPlayingBridge.swift; sourceTree = "<group>"; };
 		3267926F202E569B68EC060D /* ReadingMetricsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadingMetricsModel.swift; sourceTree = "<group>"; };
 		34D28EE148A9ACCD72D1F2B4 /* VersionAlignment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionAlignment.swift; sourceTree = "<group>"; };
 		3563C59C0886344285A5A617 /* ReaderEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderEngine.swift; sourceTree = "<group>"; };
@@ -152,6 +159,7 @@
 		46A122077DDB22AF9B11858E /* Degradation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Degradation.swift; sourceTree = "<group>"; };
 		4AF2E6060826B25D453919EA /* Kinsoku.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Kinsoku.swift; sourceTree = "<group>"; };
 		4B1E604E62A5C445A7557C26 /* ChapterScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChapterScanner.swift; sourceTree = "<group>"; };
+		503392E75B5515386D097600 /* BookCoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookCoverView.swift; sourceTree = "<group>"; };
 		521171D3C7AC8F3F8F26FDEB /* OrientationController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrientationController.swift; sourceTree = "<group>"; };
 		55D60BC66FDE8614D8AF26C3 /* MotionRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionRegistry.swift; sourceTree = "<group>"; };
 		5A14D90C3B4EDC974F692D16 /* InkSightRootApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InkSightRootApp.swift; sourceTree = "<group>"; };
@@ -180,6 +188,7 @@
 		953905DC367CD34CED5CA3DC /* Persist.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persist.swift; sourceTree = "<group>"; };
 		97D699337917C256A9A28B64 /* VersionPickerPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionPickerPanel.swift; sourceTree = "<group>"; };
 		987B2240BE90461A23EE3207 /* BackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupService.swift; sourceTree = "<group>"; };
+		9FD68723F7F4507D648BF27B /* DogEarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DogEarView.swift; sourceTree = "<group>"; };
 		A0B57FBCA06E057C3FF77DAB /* DogEarGestureResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DogEarGestureResolver.swift; sourceTree = "<group>"; };
 		ABF17ED2E19B86E8F00BF3FD /* CredentialScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialScanner.swift; sourceTree = "<group>"; };
 		AD81A68CC07F145C7D02ECFB /* InkSightRootApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InkSightRootApp.swift; sourceTree = "<group>"; };
@@ -208,6 +217,7 @@
 		F7E0F97D568F3ABCF5C02613 /* LocalSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalSearchView.swift; sourceTree = "<group>"; };
 		FB23E78EF62A841CF14A9334 /* GlassSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassSurface.swift; sourceTree = "<group>"; };
 		FC5F649BAB5B92C53F2532FE /* InkSightApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = InkSightApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		FD558378A769C3EB7EE0A4FB /* ReaderScheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderScheme.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -297,6 +307,7 @@
 				3563C59C0886344285A5A617 /* ReaderEngine.swift */,
 				8D14086C7EFAE5D227B72CDD /* ReaderLayout.swift */,
 				62DC36F8F2A37514F3EFD2CC /* ReaderNavigator.swift */,
+				FD558378A769C3EB7EE0A4FB /* ReaderScheme.swift */,
 				942170ED14522E23F2CC46CB /* ReaderSession.swift */,
 				E4AE198D4FBC5B45BE5A5F87 /* ReadingMetrics.swift */,
 				3267926F202E569B68EC060D /* ReadingMetricsModel.swift */,
@@ -309,6 +320,7 @@
 				45BA58A004D54D7D8EBE8EC9 /* SQLiteCache.swift */,
 				12D84CD5C63288E3C6868884 /* ThemeSkinSpec.swift */,
 				CE204623319903BA599B2643 /* TTSEngine.swift */,
+				30D94491C0B31FCA76A71413 /* TTSNowPlayingBridge.swift */,
 				6C12D643A713433EF6AB557A /* TypographyPresetStore.swift */,
 				70D271BF84EC77950C29BDD5 /* TypographyTiers.swift */,
 				34D28EE148A9ACCD72D1F2B4 /* VersionAlignment.swift */,
@@ -340,7 +352,9 @@
 			children = (
 				782C62E28B8AF2572E990A08 /* AgeGateViews.swift */,
 				BF0092FDC70104C1C0594327 /* BackupView.swift */,
+				503392E75B5515386D097600 /* BookCoverView.swift */,
 				7D6802CCC3401B98801A3CA6 /* CopyrightComplaintView.swift */,
+				9FD68723F7F4507D648BF27B /* DogEarView.swift */,
 				FB23E78EF62A841CF14A9334 /* GlassSurface.swift */,
 				BB75CC4A5A83003FDB4E1A3C /* InkIcon.swift */,
 				AD81A68CC07F145C7D02ECFB /* InkSightRootApp.swift */,
@@ -357,6 +371,7 @@
 				EEF87BEA701528967F957B09 /* ShareCardView.swift */,
 				0F1D1FE0386776C44DB29775 /* SkinEnvironment.swift */,
 				8C237961F0292444C66CDD0C /* ThemeWipeOverlay.swift */,
+				29C4A2E505BA25BA66376954 /* TrajectoryDotView.swift */,
 				DFA149A9BD401AFE53FCE21B /* TTSPanel.swift */,
 				AE3E9B7C2BF3215584494B88 /* VersionCompareOverlay.swift */,
 				CA9E480C547A1A8C694D697D /* VersionCompareView.swift */,
@@ -538,6 +553,7 @@
 				E635E6D0A2212F93262D55C2 /* ReaderEngine.swift in Sources */,
 				574FDDC88F0A52D658137DF9 /* ReaderLayout.swift in Sources */,
 				DB64F1F9DE7269F3AA34FCF8 /* ReaderNavigator.swift in Sources */,
+				0DCD80BBDCA0FB616C5404C1 /* ReaderScheme.swift in Sources */,
 				752D9D9B10A4A55FF974950F /* ReaderSession.swift in Sources */,
 				A27B0BBC4A7916B5F2CEB16B /* ReadingMetrics.swift in Sources */,
 				DD895DB6F769268EF7BEC0EC /* ReadingMetricsModel.swift in Sources */,
@@ -549,6 +565,7 @@
 				DB8D3EEE3BE099BCAF0ED32B /* SelectionMapping.swift in Sources */,
 				ECB79AE6502ED93FA7B74429 /* ShakeRateLimiter.swift in Sources */,
 				35BF906C65AB58128D03813F /* TTSEngine.swift in Sources */,
+				DC9D65021A6CF869D795D8E9 /* TTSNowPlayingBridge.swift in Sources */,
 				7B84B1F8FC7438AC3C418712 /* ThemeSkinSpec.swift in Sources */,
 				5786BB6AC8538E0466B30EC6 /* TypographyPresetStore.swift in Sources */,
 				65C5830224A42E21C52BD88F /* TypographyTiers.swift in Sources */,
@@ -572,7 +589,9 @@
 			files = (
 				7287DCC4AD385572B1473F31 /* AgeGateViews.swift in Sources */,
 				48E7AB1D8A775E2CC7980FA2 /* BackupView.swift in Sources */,
+				50F4595EEC8A666C067FCA5F /* BookCoverView.swift in Sources */,
 				88D05953A0F44E359D901A66 /* CopyrightComplaintView.swift in Sources */,
+				E858A2389DE96D2D386B575A /* DogEarView.swift in Sources */,
 				391E478AFE85A808C0E1B104 /* GlassSurface.swift in Sources */,
 				D96E3575E759BC5DE2C1EF4C /* InkIcon.swift in Sources */,
 				7529DC0C00DEB41C638DC5F8 /* InkSightRootApp.swift in Sources */,
@@ -590,6 +609,7 @@
 				2426FFB2619EBB6ED62F65DD /* SkinEnvironment.swift in Sources */,
 				365718C87891BB0507808EDC /* TTSPanel.swift in Sources */,
 				1F35F9ACD9E8D352E5A27D0A /* ThemeWipeOverlay.swift in Sources */,
+				46CCE831D3A913D84EEF22D6 /* TrajectoryDotView.swift in Sources */,
 				91EC8D91A3BB329DF772018A /* VersionCompareOverlay.swift in Sources */,
 				25E23D5E8220A245A0C4C4DE /* VersionCompareView.swift in Sources */,
 				246D3BC4E2787B79478220B6 /* VersionPickerPanel.swift in Sources */,

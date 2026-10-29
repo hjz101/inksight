@@ -125,15 +125,25 @@ public final class ReaderEngine: @unchecked Sendable {
 // MARK: - ReaderTypography 默认排版（单一来源；InkSightCore 契约不动）
 
 extension ReaderTypography {
-    /// 骨架期默认排版参数（与 InkSightCore `ReaderTypography` 同源；值按 PRD/架构基线）。
+    /// 默认排版参数（**逐值对齐 PRD 正文样式基线**）。
+    ///
+    /// **D-99 修正（真实偏差）**：此前为 `fontSize: 18 / 段前 8 / 段后 8 / 缩进 28 /
+    /// 比例 1.5`——**全部不符合 PRD 基线**，且字号 18 **不在 FR-009 的档位集
+    /// {19, 20, 21}** 内（D-72 引入档位制时漏了这个收口点）。现按 PRD 修正：
+    /// - 字号 **20**（档位默认，FR-009）；
+    /// - 行高 **1.75**；
+    /// - 段前 **12** / 段后 **0**（PRD：段间视觉间距 12pt，不由行盒余量叠加）；
+    /// - 缩进 **0**（PRD：首行缩进默认 0，开启时 = 2×字号）；
+    /// - 图片占位比例 **0.75**（3:4，FR-018-ac c 的默认值）；
+    /// - 边距 20（屏宽 >375 默认）。
     public static let `default` = ReaderTypography(
         fontID: "PingFangSC-Regular",
-        fontSize: 18,
+        fontSize: 20,
         lineHeightMultiplier: 1.75,
-        paragraphSpacingBefore: 8,
-        paragraphSpacingAfter: 8,
-        insets: ReaderInsets(top: 24, leading: 20, bottom: 24, trailing: 20),
-        indent: 28,
-        imagePlaceholderAspect: 1.5
+        paragraphSpacingBefore: 12,
+        paragraphSpacingAfter: 0,
+        insets: ReaderInsets(top: 24, leading: 20, bottom: 28, trailing: 20),
+        indent: 0,
+        imagePlaceholderAspect: 0.75
     )
 }
