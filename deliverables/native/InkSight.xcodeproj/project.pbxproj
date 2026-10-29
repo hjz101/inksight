@@ -14,6 +14,7 @@
 		1C989F5C65BCFCEFB9832C88 /* ShareCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEF87BEA701528967F957B09 /* ShareCardView.swift */; };
 		1F35F9ACD9E8D352E5A27D0A /* ThemeWipeOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C237961F0292444C66CDD0C /* ThemeWipeOverlay.swift */; };
 		2253DF5835CB5A6FA122322C /* SQLiteCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45BA58A004D54D7D8EBE8EC9 /* SQLiteCache.swift */; };
+		2426FFB2619EBB6ED62F65DD /* SkinEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F1D1FE0386776C44DB29775 /* SkinEnvironment.swift */; };
 		246D3BC4E2787B79478220B6 /* VersionPickerPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97D699337917C256A9A28B64 /* VersionPickerPanel.swift */; };
 		25E23D5E8220A245A0C4C4DE /* VersionCompareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA9E480C547A1A8C694D697D /* VersionCompareView.swift */; };
 		27E2A7303B34311942E3E767 /* ColorHex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64668868EF77B13686A2771F /* ColorHex.swift */; };
@@ -130,6 +131,7 @@
 		019900092D509290CFB7BFFF /* CoreTextLineCompositor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreTextLineCompositor.swift; sourceTree = "<group>"; };
 		05382601E53923CDFAFF58F7 /* InkSightCore.framework */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.framework; path = InkSightCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		0847D74B2D549A51EE20A361 /* GuardianSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuardianSession.swift; sourceTree = "<group>"; };
+		0F1D1FE0386776C44DB29775 /* SkinEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkinEnvironment.swift; sourceTree = "<group>"; };
 		12D84CD5C63288E3C6868884 /* ThemeSkinSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeSkinSpec.swift; sourceTree = "<group>"; };
 		17376FEA892CDDABDDAF320B /* MotionEffects.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionEffects.swift; sourceTree = "<group>"; };
 		2728D219F44C532088006ADB /* MotionSettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionSettingsStore.swift; sourceTree = "<group>"; };
@@ -353,6 +355,7 @@
 				B073B78BFA25C7D206B9EBA6 /* ReaderToolbar.swift */,
 				ECEFD1B847C548160928F508 /* RepaginationStatusModel.swift */,
 				EEF87BEA701528967F957B09 /* ShareCardView.swift */,
+				0F1D1FE0386776C44DB29775 /* SkinEnvironment.swift */,
 				8C237961F0292444C66CDD0C /* ThemeWipeOverlay.swift */,
 				DFA149A9BD401AFE53FCE21B /* TTSPanel.swift */,
 				AE3E9B7C2BF3215584494B88 /* VersionCompareOverlay.swift */,
@@ -584,6 +587,7 @@
 				781ADB186BB17B3E0918A9EE /* ReaderToolbar.swift in Sources */,
 				481E8D8079671B2ED5D47E3A /* RepaginationStatusModel.swift in Sources */,
 				1C989F5C65BCFCEFB9832C88 /* ShareCardView.swift in Sources */,
+				2426FFB2619EBB6ED62F65DD /* SkinEnvironment.swift in Sources */,
 				365718C87891BB0507808EDC /* TTSPanel.swift in Sources */,
 				1F35F9ACD9E8D352E5A27D0A /* ThemeWipeOverlay.swift in Sources */,
 				91EC8D91A3BB329DF772018A /* VersionCompareOverlay.swift in Sources */,

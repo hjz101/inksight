@@ -29,7 +29,7 @@ struct TTSPanel: View {
                         Text("朗读").font(.headline)
                         Spacer()
                         Button(action: onClose) {
-                            InkIcon(.close, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 17)
+                            ThemedInkIcon(.close, size: 17)
                                 .frame(width: 44, height: 44)
                                 .contentShape(Rectangle())
                         }
@@ -49,8 +49,7 @@ struct TTSPanel: View {
                                 case .paused: engine.resume()
                                 }
                             } label: {
-                                InkIcon(engine.state == .speaking ? .pause : .play,
-                                            spec: ThemeSkinSpec.spec(for: .snowPaper), size: 40)
+                                ThemedInkIcon(engine.state == .speaking ? .pause : .play, size: 40)
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel(engine.state == .speaking ? "暂停朗读" : "继续朗读")

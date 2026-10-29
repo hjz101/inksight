@@ -32,7 +32,7 @@ struct VersionCompareView: View {
                 Text("版本对比").font(.headline)
                 Spacer()
                 Button(action: onClose) {
-                    InkIcon(.close, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15)
+                    ThemedInkIcon(.close, size: 15)
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
@@ -45,7 +45,7 @@ struct VersionCompareView: View {
             // 汇总行
             HStack(spacing: 6) {
                 Text(leftName).font(.caption2.weight(.medium))
-                InkIcon(.swap, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15)
+                ThemedInkIcon(.swap, size: 15)
                 Text(rightName).font(.caption2.weight(.medium))
             }
             .foregroundStyle(.secondary)

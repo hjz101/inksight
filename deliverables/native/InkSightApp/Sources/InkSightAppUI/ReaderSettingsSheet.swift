@@ -49,7 +49,7 @@ struct ReaderSettingsSheet: View {
                         Text("阅读设置").font(.headline)
                         Spacer()
                         Button(action: onClose) {
-                            InkIcon(.close, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 17)
+                            ThemedInkIcon(.close, size: 17)
                                 .frame(width: 44, height: 44)   // 44pt 触控目标
                                 .contentShape(Rectangle())
                         }

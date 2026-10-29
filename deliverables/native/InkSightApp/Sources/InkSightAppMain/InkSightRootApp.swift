@@ -55,6 +55,9 @@ struct RootView: View {
                                  progress: wipe.progress)
             }
         }
+        // **FR-028 全站皮肤联动**：把当前皮肤规格注入环境树，
+        // 所有 `ThemedInkIcon` 自动读取——不再各处硬编码雪纸规格。
+        .themeSkin(skinSpec)
         // **FR-028 第 ② 项：全局强调色注入**——皮肤强调色应用到全部按钮/选中/进度/开关。
         // 不做全局注入的话，换主题时"强调色"这一项只在皮肤选择器上变，属"某项没随主题动"。
         .tint(Color(hexString: skinSpec.accentHex))

@@ -52,7 +52,7 @@ struct NotesScreen: View {
                     // 诚实空态：不伪装有划线
                     VStack(spacing: 10) {
                         Spacer()
-                        InkIcon(.highlighter, spec: ThemeSkinSpec.spec(for: .snowPaper), size: 15)
+                        ThemedInkIcon(.highlighter, size: 15)
                             .foregroundStyle(.tertiary)
                         Text("还没有划线")
                             .font(.headline)
