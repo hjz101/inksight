@@ -466,6 +466,8 @@ struct MeScreen: View {
     /// FR-028 皮肤包：三套主题皮肤（四项联动）。
     @State private var skinStore = ThemeSkinStore()
     @State private var currentSkin: ThemeSkinSpec.Skin = ThemeSkinStore().skin
+    /// FR-028 第 ④ 项：主题切换转场（色带漫延）。
+    @StateObject private var wipe = ThemeWipeController.shared
     /// FR-032 ③④：监护会话（**跨页面共享**；此前是 @State，视图重建会重载并重置锁定计数）。
     @StateObject private var guardianSession = GuardianSession.shared
     /// FR-032 ③：验证输入与反馈。
@@ -560,6 +562,8 @@ struct MeScreen: View {
                         Button {
                             try? skinStore.setSkin(skin)
                             currentSkin = skin
+                            // **FR-028 第 ④ 项**：换皮肤即播色带漫延转场（配色取新皮肤）
+                            wipe.wipe(to: ThemeSkinSpec.spec(for: skin))
                         } label: {
                             HStack {
                                 // 强调色圆点（第 ② 项：强调色随主题变）

@@ -144,3 +144,50 @@ final class TTSEngineTests: XCTestCase {
         XCTAssertEqual(engine.settings.rateMultiplier, 2.5)
     }
 }
+
+/// D-93 缺陷修复验证：段推进由 delegate 驱动，不再"排入即自增"。
+@MainActor
+final class TTSDelegateAdvanceTests: XCTestCase {
+
+    /// **关键**：`start` 后只朗读第一段，`segmentIndex` 不应被提前推进。
+    ///
+    /// 修复前：`speakCurrentSegment` 内部 `segmentIndex += 1` → 一次 start 就把
+    /// 全部段排入队列，offset 推进与朗读脱节。
+    func testStartDoesNotAdvanceAhead() {
+        let engine = TTSEngine()
+        // 1200 字 → 3 段（每段 400）
+        engine.start(text: String(repeating: "字", count: 1200))
+        XCTAssertEqual(engine.state, .speaking)
+        // 首段 offset 为 0，且**不应**已经前进到第 2 段
+        XCTAssertEqual(engine.currentCharOffset, 0,
+                       "start 后应停在首段，不得提前推进（D-93 缺陷）")
+    }
+
+    /// 段读完推进到下一段 offset。
+    func testAdvanceMovesToNextSegment() {
+        let engine = TTSEngine()
+        engine.start(text: String(repeating: "字", count: 1200))
+        engine.advanceAfterSegmentFinished()
+        XCTAssertEqual(engine.currentCharOffset, 400, "读完首段应推进到第二段（400）")
+    }
+
+    /// 全部读完 → 回到 idle 并回调 `onFinishedChapter`。
+    func testFinishAllSegmentsStopsAndNotifies() {
+        let engine = TTSEngine()
+        var finished = false
+        engine.onFinishedChapter = { finished = true }
+        engine.start(text: String(repeating: "字", count: 1200))  // 3 段
+        engine.advanceAfterSegmentFinished()  // → 段2
+        engine.advanceAfterSegmentFinished()  // → 段3
+        engine.advanceAfterSegmentFinished()  // → 读完
+        XCTAssertEqual(engine.state, .idle, "全章读完应回到 idle")
+        XCTAssertTrue(finished, "应回调 onFinishedChapter")
+    }
+
+    /// idle 时推进无效（不崩、不误触发）。
+    func testAdvanceWhenIdleIsNoop() {
+        let engine = TTSEngine()
+        engine.advanceAfterSegmentFinished()
+        XCTAssertEqual(engine.state, .idle)
+    }
+}

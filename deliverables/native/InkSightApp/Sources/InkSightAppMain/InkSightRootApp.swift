@@ -17,6 +17,10 @@ struct RootView: View {
     /// 发行版由 DeclaredAgeRange 决定（fail-closed：拒答→保守态，见架构 v2.2）。
     private let ageState: AgeGateState = .adultConfirmed
     @State private var readerActive = false
+    /// FR-028：当前皮肤规格（用于全局强调色注入 ＋ 圆角偏移）。
+    @State private var skinSpec = ThemeSkinSpec.spec(for: ThemeSkinStore().skin)
+    /// FR-028 第 ④ 项：主题切换转场层。
+    @StateObject private var wipe = ThemeWipeController.shared
 
     /// 演示阅读引擎：注入公有领域示例章节（确定性 Demo 路径，不走真实文件导入）。
     /// 静态初始化一次，避免每次 body 重算排版。
@@ -44,8 +48,25 @@ struct RootView: View {
                     .transition(.identity)
             }
         }
+        // **FR-028 第 ④ 项**：主题切换色带漫延（纯色渐变、径向裁剪、420ms）
+        .overlay {
+            if wipe.isAnimating {
+                ThemeWipeOverlay(fromHex: wipe.fromHex, toHex: wipe.toHex,
+                                 progress: wipe.progress)
+            }
+        }
+        // **FR-028 第 ② 项：全局强调色注入**——皮肤强调色应用到全部按钮/选中/进度/开关。
+        // 不做全局注入的话，换主题时"强调色"这一项只在皮肤选择器上变，属"某项没随主题动"。
+        .tint(Color(hexString: skinSpec.accentHex))
         // 启动即把持久化的动效开关应用到唯一动画入口（开发包 #7）。
         // 不做这一步的话，「持久化」只是落盘不生效＝不诚实：用户关了某 ID，重启后又自己播回来。
-        .onAppear { MotionCoordinator.shared.apply(MotionSettingsStore().load()) }
+        .onAppear {
+            MotionCoordinator.shared.apply(MotionSettingsStore().load())
+            skinSpec = ThemeSkinSpec.spec(for: ThemeSkinStore().skin)
+        }
+        // 皮肤在设置页变更后，回到主界面时重新读取（无需重启）
+        .onChange(of: readerActive) { _, _ in
+            skinSpec = ThemeSkinSpec.spec(for: ThemeSkinStore().skin)
+        }
     }
 }

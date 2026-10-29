@@ -64,7 +64,7 @@ public struct TTSSettings: Codable, Equatable, Sendable {
 /// **合规**：TTS 只朗读**当前会话内存中的章节文本**（≤3 章约束不变），
 /// 不落盘、不产生网络请求（离线系统语音）。
 @MainActor
-public final class TTSEngine: ObservableObject {
+public final class TTSEngine: NSObject, ObservableObject {
 
     @Published public private(set) var state: TTSPlaybackState = .idle
     /// 当前朗读到的字符偏移（用于进度显示与续读）。
@@ -79,8 +79,23 @@ public final class TTSEngine: ObservableObject {
     private var segments: [(offset: Int, text: String)] = []
     private var segmentIndex = 0
 
-    public init(settings: TTSSettings = TTSSettings()) {
+    /// 朗读结束回调（供 UI/上层推进章节；nil ＝ 不通知）。
+    public var onFinishedChapter: (() -> Void)?
+
+    public override init() {
+        self.settings = TTSSettings()
+        super.init()
+        #if canImport(AVFoundation)
+        synthesizer.delegate = self
+        #endif
+    }
+
+    public init(settings: TTSSettings) {
         self.settings = settings.normalized()
+        super.init()
+        #if canImport(AVFoundation)
+        synthesizer.delegate = self
+        #endif
     }
 
     /// 开始朗读整章（分段：按段落切，逐段推进 offset）。
@@ -157,9 +172,11 @@ public final class TTSEngine: ObservableObject {
         }
     }
 
+    /// 朗读当前段（**不自增 index**——推进由 delegate 的 `didFinish` 驱动）。
     private func speakCurrentSegment() {
         guard segmentIndex < segments.count else {
             stop()
+            onFinishedChapter?()
             return
         }
         let seg = segments[segmentIndex]
@@ -170,10 +187,6 @@ public final class TTSEngine: ObservableObject {
         utterance.voice = AVSpeechSynthesisVoice(language: "zh-CN")
         synthesizer.speak(utterance)
         #endif
-        // 段推进：本实现的推进由下一段触发（简化：读完即下一段）
-        // 真实实现应接 AVSpeechSynthesizerDelegate 的 didFinish；此处以段落为单位的
-        // 回调留待真机接线（台账已登记）。
-        segmentIndex += 1
     }
 
     /// 分段：按段落边界切（每段最多 400 字，避免超长 utterance）。
@@ -219,4 +232,51 @@ public enum TTSAudioSession {
                                                      options: [.notifyOthersOnDeactivation])
     }
     #endif
+}
+
+// MARK: - AVSpeechSynthesizerDelegate（逐段推进）
+
+#if canImport(AVFoundation)
+extension TTSEngine: AVSpeechSynthesizerDelegate {
+
+    /// 一段读完 → 推进到下一段并继续朗读。
+    ///
+    /// **这是 D-93 遗留缺陷的修复**：此前 `speakCurrentSegment` 在排入 utterance 后
+    /// 立即 `segmentIndex += 1`，导致一次调用把全部段排入队列，
+    /// `currentCharOffset` 推进与实际朗读脱节。现在由系统回调驱动推进。
+    public nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer,
+                                             didFinish utterance: AVSpeechUtterance) {
+        Task { @MainActor in
+            self.advanceAfterSegmentFinished()
+        }
+    }
+
+    /// 系统取消朗读（如被其他音频打断）→ 回到 idle。
+    public nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer,
+                                             didCancel utterance: AVSpeechUtterance) {
+        Task { @MainActor in
+            // 取消后不再继续，交由调用方决定是否恢复（避免死循环）
+            self.segmentIndex = 0
+            self.segments = []
+            self.state = .idle
+        }
+    }
+}
+#endif
+
+extension TTSEngine {
+    /// 段读完推进（`didFinish` 调用）。
+    @MainActor
+    func advanceAfterSegmentFinished() {
+        guard state == .speaking || state == .paused else { return }
+        segmentIndex += 1
+        if segmentIndex < segments.count {
+            speakCurrentSegment()
+        } else {
+            // 全章读完
+            let finished = onFinishedChapter
+            stop()
+            finished?()
+        }
+    }
 }

@@ -48,9 +48,18 @@ final class ThemeSkinWiringTests: XCTestCase {
     }
 
     /// hex 解析器**单一来源**（避免两套解析产生色差 → 观感上"某项没变"）。
+    ///
+    /// D-95：`ColorHex.swift` 已从 UI 模块移到 **Kit**（Main 模块也要用全局 tint，
+    /// 而 Main 不依赖 UI）。测试路径随之指向 Kit。
     func testSingleHexParser() throws {
-        let src = try source("ColorHex.swift")
+        let kitBase = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Sources/InkSightAppKit")
+        let src = try String(contentsOf: kitBase.appendingPathComponent("ColorHex.swift"),
+                             encoding: .utf8)
         XCTAssertTrue(src.contains("init(hexString: String)"), "须有统一 hex 解析")
+        XCTAssertTrue(src.contains("public init(hexString: String)"),
+                      "跨模块使用须为 public（extension 成员默认 internal）")
         // 其他 UI 文件不得各自实现 hex 解析
         for file in ["ReaderSurface.swift", "PlaceholderScreens.swift"] {
             let s = try source(file)

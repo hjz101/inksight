@@ -1,4 +1,5 @@
 import SwiftUI
+import InkSightCore
 
 // MARK: - Color(hexString:)（主题色 token 解析）
 
@@ -8,7 +9,8 @@ import SwiftUI
 /// 避免两套 hex 解析器产生色差（DESIGN §3 判据要求「四项同时变」，
 /// 若解析器不一致，观感上会出现"某项没变"的假象）。
 extension Color {
-    init(hexString: String) {
+    /// 十六进制 → Color（**public**：跨模块使用，extension 的成员默认 internal）。
+    public init(hexString: String) {
         let cleaned = hexString.trimmingCharacters(in: .whitespaces)
         let v = cleaned.hasPrefix("#") ? String(cleaned.dropFirst()) : cleaned
         guard v.count == 6, let n = UInt32(v, radix: 16) else {

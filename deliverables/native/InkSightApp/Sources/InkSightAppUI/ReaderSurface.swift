@@ -245,6 +245,7 @@ public struct ReaderSurfaceView: View {
                     ReaderToolbar(
                         presentation: glassPresentation,
                         themeTint: (hex: skinSpec.glassTintHex, opacity: skinSpec.glassTintOpacity),
+                        radiusShift: skinSpec.radiusShift,
                         onBookmark: addBookmarkAtCurrentPage,
                         onSwapVersion: { showVersionPicker = true },
                         onSettings: {

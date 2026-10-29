@@ -16,6 +16,8 @@ struct ReaderToolbar: View {
     var presentation: GlassPresentationState = .steady
     /// FR-028：主题玻璃 tint（第 ③ 项，随主题联动）。
     var themeTint: (hex: String, opacity: Double)? = nil
+    /// FR-028：主题圆角偏移（蜜桃汽水 +4；DESIGN §3.1 token `radius-shift`）。
+    var radiusShift: Double = 0
     /// 加书签回调（FR-011）。
     var onBookmark: () -> Void = {}
     /// 打开「换一个版本」面板（FR-018 主路径）。
@@ -30,7 +32,9 @@ struct ReaderToolbar: View {
     var onTTS: () -> Void = {}
     var body: some View {
         GlassSurface(strength: .l1, interactive: true,
-                     cornerRadius: 18, presentation: presentation,
+                     // FR-028 token `radius-shift`：蜜桃汽水全站圆角 +4，不得硬编码
+                     cornerRadius: 18 + CGFloat(radiusShift),
+                     presentation: presentation,
                      themeTint: themeTint) {
             HStack(spacing: 4) {
                 toolbarButton("目录", systemImage: "list.bullet", action: onTOC)
