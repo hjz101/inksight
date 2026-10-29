@@ -465,6 +465,8 @@ struct MeScreen: View {
     @State private var themeState: ThemeState = ThemeStore().load()
     /// FR-028 皮肤包：三套主题皮肤（四项联动）。
     @State private var skinStore = ThemeSkinStore()
+    /// FR-028 方案分享界面。
+    @State private var showSchemeSharing = false
     @State private var currentSkin: ThemeSkinSpec.Skin = ThemeSkinStore().skin
     /// FR-028 第 ④ 项：主题切换转场（色带漫延）。
     @StateObject private var wipe = ThemeWipeController.shared
@@ -583,6 +585,26 @@ struct MeScreen: View {
                     Text("主题皮肤")
                 } footer: {
                     Text("换主题时图标描边与端点、强调色、玻璃 tint 与色散、转场配色四项同时变——任一项不随主题动即判未完成。")
+                }
+
+                // FR-028 方案分享：把当前皮肤+排版+动效存为方案并分享
+                Section {
+                    Button {
+                        showSchemeSharing = true
+                    } label: {
+                        HStack(spacing: 6) {
+                            ThemedInkIcon(.upload, size: 15)
+                            Text("阅读方案")
+                        }
+                    }
+                } footer: {
+                    Text("把当前的皮肤、排版与动效存为方案，可分享给他人或在其他设备导入。方案不含书籍内容。")
+                }
+                .sheet(isPresented: $showSchemeSharing) {
+                    SchemeSharingView(typography: preset,
+                                      motion: motionSettings,
+                                      skin: currentSkin,
+                                      onClose: { showSchemeSharing = false })
                 }
 
                 // FR-025 备份与恢复（设置与数据）：导出进度与偏好，不含正文。

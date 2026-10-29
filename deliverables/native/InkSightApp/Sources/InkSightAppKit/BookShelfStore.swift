@@ -93,12 +93,35 @@ public final class BookShelfStore: @unchecked Sendable {
     public func importLocalBook(bookID: String, title: String, fileURL: URL) throws -> BookShelfItem {
         let data = try Data(contentsOf: fileURL)
         let result = ChapterScanner.scan(data)
-        let metadata = MetadataParser.parseFromFileName(fileURL.lastPathComponent)
-        let displayTitle = title.isEmpty ? (result.chapters.first?.title ?? "未命名书籍") : metadata.title
+        // **FR-007：epub 走容器解包**（取 OPF 的 title/creator ＋ 封面）；
+        // 非 epub 或解包失败 → 回落文件名推断（**不因解包失败阻断导入**）。
+        var metadata = MetadataParser.parseFromFileName(fileURL.lastPathComponent)
+        var cover: Data?
+        if fileURL.pathExtension.lowercased() == "epub",
+           let extracted = try? EpubExtractor.extract(from: data) {
+            if !extracted.metadata.title.isEmpty {
+                metadata.title = extracted.metadata.title
+            }
+            if let author = extracted.metadata.author, !author.isEmpty {
+                metadata.author = author
+            }
+            cover = extracted.metadata.coverImageData
+        }
+        // **书名优先级（D-100 修正）**：
+        // ① 调用方显式传的 title；② **元数据解析出的书名**（文件名/OPF）；
+        // ③ 首章标题；④ 兜底。
+        // 此前把 ③ 排在 ② 前面，导致 epub 解包出的书名被"未命名章节"覆盖
+        // （zip 字节过章扫描器扫不出章节，只得默认名）。
+        let displayTitle: String = {
+            if !title.isEmpty { return metadata.title.isEmpty ? title : metadata.title }
+            if !metadata.title.isEmpty { return metadata.title }
+            return result.chapters.first?.title ?? "未命名书籍"
+        }()
         let item = BookShelfItem(
             bookID: bookID,
             title: displayTitle,
             author: metadata.author,
+            coverImageData: cover,
             source: .localImport,
             importDate: Date(),
             chapterCount: result.chapters.count,

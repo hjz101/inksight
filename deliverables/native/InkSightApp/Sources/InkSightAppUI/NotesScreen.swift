@@ -12,6 +12,8 @@ import InkSightAppKit
 struct NotesScreen: View {
     /// 划线仓库（nil ＝ 未注入，诚实空态）。
     let highlightsStore: HighlightsStore?
+    /// FR-022：标签管理是否呈现。
+    @State private var showTagManagement = false
 
     /// 全部标签（去重，供筛选）。
     private var allTags: [String] {
@@ -66,6 +68,26 @@ struct NotesScreen: View {
                 }
             }
             .navigationTitle("墨迹")
+            // FR-022：标签管理入口（仅在有划线仓库时出现）
+            .toolbar {
+                // 跨平台：macOS 没有 topBarTrailing，用 .primaryAction（两平台都有）
+                ToolbarItem(placement: .primaryAction) {
+                    if highlightsStore != nil {
+                        Button {
+                            showTagManagement = true
+                        } label: {
+                            Text("标签管理")
+                        }
+                        .accessibilityLabel("标签管理")
+                    }
+                }
+            }
+            .sheet(isPresented: $showTagManagement) {
+                if let store = highlightsStore {
+                    TagManagementView(highlightsStore: store,
+                                      onClose: { showTagManagement = false })
+                }
+            }
         }
     }
 
