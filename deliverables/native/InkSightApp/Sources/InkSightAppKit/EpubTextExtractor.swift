@@ -23,10 +23,17 @@ public enum EpubTextExtractor {
         public let text: String
         /// 各章节（spine 项）的标题（来自 XHTML 的 `<title>` 或首个 `<h1>`~`<h3>`）。
         public let chapterTitles: [String]
+        /// **图片字节列表，按正文中占位标记出现的顺序**（D-104）。
+        ///
+        /// 第 i 个占位标记 → `images[i]`。若某个 `<img>` 的源在包内找不到
+        /// （外链图片/损坏条目），对应位置为 `nil`——**顺序位保持，
+        /// 不能左移**（左移会让后续图片配错）。
+        public let images: [Data?]
 
-        public init(text: String, chapterTitles: [String]) {
+        public init(text: String, chapterTitles: [String], images: [Data?] = []) {
             self.text = text
             self.chapterTitles = chapterTitles
+            self.images = images
         }
     }
 
@@ -47,6 +54,7 @@ public enum EpubTextExtractor {
 
         var pieces: [String] = []
         var titles: [String] = []
+        var images: [Data?] = []
 
         for idref in spine {
             guard let href = manifest[idref] else { continue }
@@ -54,6 +62,8 @@ public enum EpubTextExtractor {
             guard let raw = try? zip.read(path) else { continue }
             let xhtml = String(decoding: raw, as: UTF8.self)
             let body = extractBody(from: xhtml)
+            // 先按出现顺序收集本章图片字节（与占位标记一一对应）
+            let chapterImages = collectImages(from: body, xhtmlPath: path, zip: zip)
             let text = stripMarkup(body)
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty else { continue }   // 空章（纯图片页）跳过
@@ -63,12 +73,14 @@ public enum EpubTextExtractor {
                 ?? "第 \(titles.count + 1) 节"
             titles.append(stripMarkup(title).trimmingCharacters(in: .whitespacesAndNewlines))
             pieces.append(trimmed)
+            images.append(contentsOf: chapterImages)
         }
 
         guard !pieces.isEmpty else {
             throw ZipReader.ZipError.entryNotFound("可读正文")
         }
-        return Result(text: pieces.joined(separator: "\n\n"), chapterTitles: titles)
+        return Result(text: pieces.joined(separator: "\n\n"),
+                      chapterTitles: titles, images: images)
     }
 
     // MARK: - OPF 结构
@@ -178,6 +190,40 @@ public enum EpubTextExtractor {
             }
         }
         return result.joined(separator: "\n")
+    }
+
+    /// 按 `<img>` 出现顺序收集图片字节（与占位标记一一对应）。
+    ///
+    /// **顺序位必须保持**：某张图找不到时放 `nil` 占位，**不能左移**——
+    /// 左移会让后续所有图片配错位（视觉上"图不对文"）。
+    static func collectImages(from body: String, xhtmlPath: String, zip: ZipReader) -> [Data?] {
+        guard let re = try? NSRegularExpression(pattern: "<img[^>]*>",
+                                               options: [.caseInsensitive]) else { return [] }
+        let ns = body as NSString
+        let matches = re.matches(in: body, range: NSRange(location: 0, length: ns.length))
+        return matches.map { m -> Data? in
+            let tag = ns.substring(with: m.range)
+            guard let src = imageSrc(in: tag) else { return nil }
+            // 外链图片（http/https/data）不读取——按 PRD「不联网」
+            if src.hasPrefix("http://") || src.hasPrefix("https://")
+                || src.hasPrefix("data:") { return nil }
+            let resolved = EpubExtractor.resolve(href: src, relativeTo: xhtmlPath)
+            return try? zip.read(resolved)
+        }
+    }
+
+    /// 从 `<img>` 标签取 src（兼容 src='...' 与 src="..."）。
+    static func imageSrc(in tag: String) -> String? {
+        for quote in ["\"", "'"] {
+            if let r = tag.range(of: "src=\(quote)") {
+                let rest = tag[r.upperBound...]
+                if let end = rest.firstIndex(of: Character(quote)) {
+                    let v = String(rest[..<end])
+                    return v.isEmpty ? nil : v
+                }
+            }
+        }
+        return nil
     }
 
     /// 图片占位标记（单行，独占一段）。

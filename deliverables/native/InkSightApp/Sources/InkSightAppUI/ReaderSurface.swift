@@ -6,6 +6,22 @@ import InkSightCore
 
 // MARK: - 阅读器表面（正文区 0 玻璃的结构保证）
 
+// ⚠️ **本文件 View 参数顺序纪律**（本会话踩了 5 次，写在这里比写进测试更可靠）
+//
+// Swift 的 memberwise 初始化器**严格按声明顺序**传参。给本文件的 View 加参数时：
+//   1. 先看声明的属性顺序（不是看调用处）；
+//   2. 再按同一顺序写调用处；
+//   3. 跨行调用也按声明顺序排列标签。
+//
+// 本会话的错误记录：`onCompare`/`onEditLabel`、`onTOC`/`onProgress`、
+// `themeTint`/回调、`containerSize`/`theme`、`onImageTap`/`theme`。
+//
+// 为什么不用测试守：曾试写过参数顺序检查测试，但它需要解析 Swift 语法
+// （跨行调用、属性包装器、元组类型里的冒号、跨文件定义/调用），
+// **维护成本远高于收益**，且自身易出假阳性/假阴性。编译器的报错已经足够明确
+// （"argument 'X' must precede argument 'Y'"），不必自己再实现一遍。
+
+
 /// 阅读正文容器（开发包 #4：真实排版渲染 ＋ 进度恢复 ＋ 五式翻页）。
 ///
 /// **正文区 0 玻璃的结构保证**（回报第 ④ 项，类型层强制）：
@@ -93,6 +109,8 @@ public struct ReaderSurfaceView: View {
     @State private var nowPlaying = TTSNowPlayingBridge()
     /// FR-012：章末是否自动续读下一章（长文本连续听）。
     @State private var ttsAutoContinue = true
+    /// FR-018-ac b：全屏原图数据（nil ＝ 未打开）。
+    @State private var fullScreenImage: Data?
     /// FR-028：当前皮肤规格（四项联动：图标/强调色/玻璃/转场）。
     @State private var skinSpec = ThemeSkinSpec.spec(for: ThemeSkinStore().skin)
     /// FR-018 版本对比：对比报告（nil ＝ 未打开）。
@@ -140,7 +158,8 @@ public struct ReaderSurfaceView: View {
             if let live = session.engine {
                 VStack(spacing: 0) {
                     readerTopBar(live)
-                    ReaderPager(engine: live, page: pageBinding, mode: config.pageTurnMode, theme: theme)
+                    ReaderPager(engine: live, page: pageBinding, mode: config.pageTurnMode,
+                                onImageTap: openFullScreenImage, theme: theme)
                         // **FR-013 长按选句**：长按正文任一行 → 选中该行并弹出划线操作。
                         // 用 DragGesture(minimumDistance:0) + 延迟任务判定长按（LongPressGesture
                         // 不带位置）；0.5s 后仍按住 → 用按下位置映射到当前页的行。
@@ -325,6 +344,13 @@ public struct ReaderSurfaceView: View {
             OrientationController.shared.lockReaderToPortrait()
             // **FR-023**：记录本次阅读开始时刻（退出时算时长）。
             sessionStart = Date()
+        }
+        // **FR-018-ac b**：全屏原图（占位块点击进入）
+        .overlay {
+            if let data = fullScreenImage {
+                ImageFullScreenView(imageData: data, onClose: { fullScreenImage = nil })
+                    .transition(.opacity)
+            }
         }
         // **EGG4 折角视觉**（24→60pt / 吸附后保持 3s）
         .overlay(alignment: .bottomTrailing) {
@@ -597,6 +623,16 @@ public struct ReaderSurfaceView: View {
         let thirdW = size.width / 3, thirdH = size.height / 3
         return location.x >= thirdW && location.x <= thirdW * 2
             && location.y >= thirdH && location.y <= thirdH * 2
+    }
+
+    /// FR-018-ac b：打开某序号的 epub 图片（全屏原图）。
+    ///
+    /// 从 `EpubImageStore` 按书 + 序号取字节；取不到则**不打开**
+    /// （诚实：没有图就不要假装能看）。
+    private func openFullScreenImage(_ index: Int) {
+        guard let live = session.engine else { return }
+        guard let data = EpubImageStore.image(at: index, bookID: live.bookID) else { return }
+        fullScreenImage = data
     }
 
     /// FR-012：本章朗读完毕 → 加载下一章并继续朗读。
@@ -920,14 +956,19 @@ struct ReaderPager: View {
     let engine: ReaderEngine
     @Binding var page: Int
     var mode: PageTurnMode
+    /// FR-018-ac b：占位块点击（打开全屏原图）。
+    var onImageTap: ((Int) -> Void)? = nil
     /// 阅读主题（FR-010）。
     var theme: ThemeState = ThemeState()
+
+    private func openImage(_ index: Int) { onImageTap?(index) }
 
     var body: some View {
         switch mode {
         case .none:
             ReaderPageCanvas(engine: engine, pageIndex: page,
                              containerSize: ReaderLayout.shared.containerSize,
+                             onImageTap: openImage,
                              theme: theme)
         case .scroll, .flip, .curl:
             pagingScroll(.horizontal)
@@ -965,7 +1006,9 @@ struct ReaderPager: View {
                     LazyHStack(spacing: 0) {
                         ForEach(0..<engine.pageCount, id: \.self) { idx in
                             ReaderPageCanvas(engine: engine, pageIndex: idx,
-                                             containerSize: geo.size, theme: theme)
+                                             containerSize: geo.size,
+                                             onImageTap: openImage,
+                                             theme: theme)
                                 .frame(width: geo.size.width, height: geo.size.height)
                                 .id(idx)
                         }
@@ -975,7 +1018,9 @@ struct ReaderPager: View {
                     LazyVStack(spacing: 0) {
                         ForEach(0..<engine.pageCount, id: \.self) { idx in
                             ReaderPageCanvas(engine: engine, pageIndex: idx,
-                                             containerSize: geo.size, theme: theme)
+                                             containerSize: geo.size,
+                                             onImageTap: openImage,
+                                             theme: theme)
                                 .frame(width: geo.size.width, height: geo.size.height)
                                 .id(idx)
                         }
@@ -1006,6 +1051,8 @@ struct ReaderPageCanvas: View {
     let pageIndex: Int
     /// 容器尺寸（FR-018-ac c：算图片占位宽度需要正文宽）。
     var containerSize: CGSize = CGSize(width: 393, height: 852)
+    /// **FR-018-ac b：占位块点击**（参数＝该块在正文中的序号）。
+    var onImageTap: ((Int) -> Void)? = nil
     /// 生效的皮肤（由 ReaderSurfaceView 按小时解析后传入；nil 时用 theme.skin）。
     var effectiveSkin: ThemeSkin?
     /// 阅读主题（FR-010）：决定纸面底色与正文墨色。
@@ -1080,6 +1127,55 @@ struct ReaderPageCanvas: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Self.color(hex: theme.backgroundHex))
+        // **FR-018-ac b：占位块点击进全屏原图**
+        // 用透明覆盖层做命中测试（Canvas 本身不接手势坐标）
+        .overlay {
+            if onImageTap != nil {
+                GeometryReader { geo in
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture { location in
+                            guard let page = engine.page(at: pageIndex) else { return }
+                            let comp = CoreTextLineCompositor(text: engine.chapterText,
+                                                              typography: engine.typography)
+                            let ys = comp.yTopPositions(for: page)
+                            let phs = ImagePlaceholderLayout.placeholders(
+                                in: page, chapterText: engine.chapterText,
+                                typography: engine.typography,
+                                containerSize: geo.size, yTopPositions: ys,
+                                token: EpubTextExtractor.imagePlaceholderToken)
+                            // 命中：点在某占位块矩形内
+                            for ph in phs where ph.rect.contains(location) {
+                                if let idx = imageIndex(for: ph.lineIndex, page: page) {
+                                    onImageTap?(idx)
+                                }
+                                return
+                            }
+                        }
+                }
+            }
+        }
+    }
+
+    /// 占位行 → 全章图片序号（与 `ImagePlaceholderLayout` 同源口径）。
+    private func imageIndex(for lineIndex: Int, page: TypesetPage) -> Int? {
+        guard lineIndex < page.lines.count else { return nil }
+        let line = page.lines[lineIndex]
+        let ns = engine.chapterText as NSString
+        let token = EpubTextExtractor.imagePlaceholderToken
+        var positions: [Int] = []
+        var searchFrom = 0
+        while searchFrom < ns.length {
+            let r = ns.range(of: token,
+                             range: NSRange(location: searchFrom,
+                                            length: ns.length - searchFrom))
+            if r.location == NSNotFound { break }
+            positions.append(r.location)
+            searchFrom = r.location + r.length
+        }
+        return positions.firstIndex(where: {
+            $0 >= line.charOffset && $0 < line.charOffset + max(line.charLength, 1)
+        })
     }
 
     /// 十六进制 → SwiftUI Color。

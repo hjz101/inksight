@@ -115,6 +115,8 @@ public final class BookShelfStore: @unchecked Sendable {
                let cached = try? Self.writeEpubTextCache(text.text, bookID: bookID) {
                 contentURL = cached
                 contentData = Data(text.text.utf8)
+                // **D-104**：图片字节落缓存（占位块点击进全屏原图的数据源）
+                try? EpubImageStore.save(images: text.images, bookID: bookID)
             }
         }
         // 用**最终内容**分章（epub 已换成提取出的纯文本）
@@ -253,6 +255,8 @@ extension BookShelfStore {
         highlightsStore?.removeAll(bookID: bookID)
         searchStore?.removeBook(bookID: bookID)
         try? labelStore?.remove(bookID: bookID)
+        // D-104：弃读一并清 epub 图片缓存
+        EpubImageStore.clear(bookID: bookID)
         return true
     }
 }
