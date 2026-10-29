@@ -16,8 +16,8 @@ targets:
       path: InkSightApp/Info.plist
       properties:
         CFBundleDisplayName: 墨见 InkSight
-        CFBundleShortVersionString: "0.15.0"
-        CFBundleVersion: "15"
+        CFBundleShortVersionString: "0.16.0"
+        CFBundleVersion: "16"
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
