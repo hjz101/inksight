@@ -92,21 +92,33 @@ public final class BookShelfStore: @unchecked Sendable {
     @discardableResult
     public func importLocalBook(bookID: String, title: String, fileURL: URL) throws -> BookShelfItem {
         let data = try Data(contentsOf: fileURL)
-        let result = ChapterScanner.scan(data)
         // **FR-007：epub 走容器解包**（取 OPF 的 title/creator ＋ 封面）；
         // 非 epub 或解包失败 → 回落文件名推断（**不因解包失败阻断导入**）。
         var metadata = MetadataParser.parseFromFileName(fileURL.lastPathComponent)
         var cover: Data?
-        if fileURL.pathExtension.lowercased() == "epub",
-           let extracted = try? EpubExtractor.extract(from: data) {
-            if !extracted.metadata.title.isEmpty {
-                metadata.title = extracted.metadata.title
+        // epub 需要先解包正文再分章：正文抽成纯文本后走既有 txt 链路，
+        // **ChapterAnchor（字节偏移）契约一个字不改**。
+        var contentURL = fileURL
+        var contentData = data
+        if fileURL.pathExtension.lowercased() == "epub" {
+            if let extracted = try? EpubExtractor.extract(from: data) {
+                if !extracted.metadata.title.isEmpty {
+                    metadata.title = extracted.metadata.title
+                }
+                if let author = extracted.metadata.author, !author.isEmpty {
+                    metadata.author = author
+                }
+                cover = extracted.metadata.coverImageData
             }
-            if let author = extracted.metadata.author, !author.isEmpty {
-                metadata.author = author
+            // 正文提取 → 落本地缓存 txt（失败则保持原 epub，正文读不了但元数据仍可用）
+            if let text = try? EpubTextExtractor.extract(from: data),
+               let cached = try? Self.writeEpubTextCache(text.text, bookID: bookID) {
+                contentURL = cached
+                contentData = Data(text.text.utf8)
             }
-            cover = extracted.metadata.coverImageData
         }
+        // 用**最终内容**分章（epub 已换成提取出的纯文本）
+        let result = ChapterScanner.scan(contentData)
         // **书名优先级（D-100 修正）**：
         // ① 调用方显式传的 title；② **元数据解析出的书名**（文件名/OPF）；
         // ③ 首章标题；④ 兜底。
@@ -125,12 +137,36 @@ public final class BookShelfStore: @unchecked Sendable {
             source: .localImport,
             importDate: Date(),
             chapterCount: result.chapters.count,
-            fileURL: fileURL,
+            fileURL: contentURL,
             chapters: result.chapters
         )
         lock.lock(); defer { lock.unlock() }
         items.append(item)
         return item
+    }
+
+    /// epub 正文缓存目录（`Caches/InkSight/EpubText`）。
+    ///
+    /// **放 Caches 而非 Application Support**：这是可重建的派生数据
+    /// （原文 epub 仍在用户手里），丢了下次导入即可重建；
+    /// 且按 NFR 缓存目录纪律需设 `NSURLIsExcludedFromBackupKey`。
+    public static func epubTextCacheURL(bookID: String) throws -> URL {
+        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        let dir = base.appendingPathComponent("InkSight/EpubText", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        // bookID 可能含文件名特殊字符 → 用稳定哈希做文件名
+        let name = String(format: "%016llx", Fingerprint.fnv1a64(bookID))
+        return dir.appendingPathComponent("\(name).txt")
+    }
+
+    /// 写 epub 正文缓存（带备份排除）。
+    static func writeEpubTextCache(_ text: String, bookID: String) throws -> URL {
+        let url = try epubTextCacheURL(bookID: bookID)
+        // 用 `structuralMetadata`（定义即"可重建，排除 iCloud 备份"）——
+        // epub 正文缓存属派生数据，不是用户原始资产。
+        try Persist.write(Data(text.utf8), to: url, payload: .structuralMetadata,
+                          excludedFromBackup: true).get()
+        return url
     }
 
     /// 按需切片取章：仅按 `ChapterAnchor` 的字节范围从磁盘读**单章**正文（NFR-08：正文不常驻内存，

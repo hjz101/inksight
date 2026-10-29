@@ -27,6 +27,7 @@
 		35EFE55311054E933185D7B3 /* Typesetter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89FE4464C689C0C08F0317BC /* Typesetter.swift */; };
 		3620E6C3CD5137EDBF18D9D9 /* MotionEffects.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17376FEA892CDDABDDAF320B /* MotionEffects.swift */; };
 		365718C87891BB0507808EDC /* TTSPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFA149A9BD401AFE53FCE21B /* TTSPanel.swift */; };
+		37795FF57218B92414C199B1 /* EpubTextExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D7350F6226853BECE7802C0 /* EpubTextExtractor.swift */; };
 		391E478AFE85A808C0E1B104 /* GlassSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB23E78EF62A841CF14A9334 /* GlassSurface.swift */; };
 		3D032A1A97F190CB49BEA400 /* MotionEffectCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E972519049C0D5BB76D772BA /* MotionEffectCatalog.swift */; };
 		3F4B207B8FCCDA11ACD84651 /* InkSightAppUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3F678ED8DC428B3E5164C8EF /* InkSightAppUI.framework */; };
@@ -140,6 +141,7 @@
 		019900092D509290CFB7BFFF /* CoreTextLineCompositor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreTextLineCompositor.swift; sourceTree = "<group>"; };
 		05382601E53923CDFAFF58F7 /* InkSightCore.framework */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.framework; path = InkSightCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		0847D74B2D549A51EE20A361 /* GuardianSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuardianSession.swift; sourceTree = "<group>"; };
+		0D7350F6226853BECE7802C0 /* EpubTextExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpubTextExtractor.swift; sourceTree = "<group>"; };
 		0F1D1FE0386776C44DB29775 /* SkinEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkinEnvironment.swift; sourceTree = "<group>"; };
 		12D84CD5C63288E3C6868884 /* ThemeSkinSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeSkinSpec.swift; sourceTree = "<group>"; };
 		17376FEA892CDDABDDAF320B /* MotionEffects.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionEffects.swift; sourceTree = "<group>"; };
@@ -300,6 +302,7 @@
 				ABF17ED2E19B86E8F00BF3FD /* CredentialScanner.swift */,
 				A0B57FBCA06E057C3FF77DAB /* DogEarGestureResolver.swift */,
 				2E8152E980820FD1DD3982D2 /* EpubExtractor.swift */,
+				0D7350F6226853BECE7802C0 /* EpubTextExtractor.swift */,
 				2FA0797BC2BAC508D357261C /* GuardianCredential.swift */,
 				0847D74B2D549A51EE20A361 /* GuardianSession.swift */,
 				927D134B995AB45CC49F6BA3 /* Highlight.swift */,
@@ -550,6 +553,7 @@
 				F752B44CECE1C0374145C99B /* CredentialScanner.swift in Sources */,
 				F1B2101987E09007A0BEE569 /* DogEarGestureResolver.swift in Sources */,
 				2186C463532D162468BCB225 /* EpubExtractor.swift in Sources */,
+				37795FF57218B92414C199B1 /* EpubTextExtractor.swift in Sources */,
 				C2C382AD704AAB133CE2AF0D /* GuardianCredential.swift in Sources */,
 				9ED031FA613260E24EDB071D /* GuardianSession.swift in Sources */,
 				DE8E52CD267E1C0F96C404FF /* Highlight.swift in Sources */,
