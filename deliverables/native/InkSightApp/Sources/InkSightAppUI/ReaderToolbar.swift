@@ -18,6 +18,8 @@ struct ReaderToolbar: View {
     var themeTint: (hex: String, opacity: Double)? = nil
     /// FR-028：主题圆角偏移（蜜桃汽水 +4；DESIGN §3.1 token `radius-shift`）。
     var radiusShift: Double = 0
+    /// FR-028：主题规格（第 ① 项：图标描边/端点随主题变）。
+    var skinSpec: ThemeSkinSpec.Spec = ThemeSkinSpec.spec(for: .snowPaper)
     /// 加书签回调（FR-011）。
     var onBookmark: () -> Void = {}
     /// 打开「换一个版本」面板（FR-018 主路径）。
@@ -37,12 +39,12 @@ struct ReaderToolbar: View {
                      presentation: presentation,
                      themeTint: themeTint) {
             HStack(spacing: 4) {
-                toolbarButton("目录", systemImage: "list.bullet", action: onTOC)
-                toolbarButton("进度", systemImage: "book.pages", action: onProgress)
-                toolbarButton("书签", systemImage: "bookmark", action: onBookmark)
-                toolbarButton("换一个版本", systemImage: "arrow.triangle.swap", action: onSwapVersion)
-                toolbarButton("排版", systemImage: "textformat.size", action: onSettings)
-                toolbarButton("朗读", systemImage: "waveform", action: onTTS)
+                toolbarButton("目录", glyph: .list, action: onTOC)
+                toolbarButton("进度", glyph: .book, action: onProgress)
+                toolbarButton("书签", glyph: .bookmark, action: onBookmark)
+                toolbarButton("换一个版本", glyph: .swap, action: onSwapVersion)
+                toolbarButton("排版", glyph: .gear, action: onSettings)
+                toolbarButton("朗读", glyph: .waveform, action: onTTS)
             }
             .padding(.horizontal, 8)
             .frame(maxWidth: .infinity)
@@ -52,13 +54,14 @@ struct ReaderToolbar: View {
         .padding(.bottom, 8)
     }
 
+    /// 工具条按钮：图标用 **`InkIcon` 自绘**（FR-028 第 ① 项）——
+    /// SF Symbols 无法自定义描边宽度与端点形状，用符号时该项恒不变（判未完成）。
     private func toolbarButton(_ label: String,
-                               systemImage: String,
+                               glyph: InkIcon.Glyph,
                                action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 3) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 17))
+                InkIcon(glyph, spec: skinSpec, size: 18)
                 Text(label)
                     .font(.system(size: 10))
             }

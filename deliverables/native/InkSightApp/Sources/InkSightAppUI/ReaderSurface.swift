@@ -246,6 +246,7 @@ public struct ReaderSurfaceView: View {
                         presentation: glassPresentation,
                         themeTint: (hex: skinSpec.glassTintHex, opacity: skinSpec.glassTintOpacity),
                         radiusShift: skinSpec.radiusShift,
+                        skinSpec: skinSpec,
                         onBookmark: addBookmarkAtCurrentPage,
                         onSwapVersion: { showVersionPicker = true },
                         onSettings: {
